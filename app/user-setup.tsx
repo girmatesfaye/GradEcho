@@ -11,7 +11,10 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
 import { PrimaryButton } from "@/components/primary-button";
 
@@ -26,6 +29,7 @@ const DEPTS = [
 ];
 
 export default function UserSetupScreen() {
+  const insets = useSafeAreaInsets();
   const [name, setName] = useState("");
   const [university, setUniversity] = useState("");
   const [department, setDepartment] = useState(DEPTS[0]);
@@ -54,13 +58,16 @@ export default function UserSetupScreen() {
       </View> */}
       <KeyboardAvoidingView
         className="flex-1 bg-surface"
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={insets.top}
       >
         <ScrollView
           className="flex-1 px-6 pt-8"
-          contentContainerClassName="pb-40"
+          contentContainerStyle={{ paddingBottom: insets.bottom + 140 }}
           contentInsetAdjustmentBehavior="automatic"
+          automaticallyAdjustKeyboardInsets
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
         >
           <View className="mb-10">
             <Text className="font-headline text-4xl font-extrabold leading-tight tracking-tight text-primary">
@@ -187,7 +194,10 @@ export default function UserSetupScreen() {
             </View>
           </View>
         </ScrollView>
-        <View className="border-t border-outline-variant/20 bg-surface/90 px-6 pb-6 pt-4">
+        <View
+          className="border-t border-outline-variant/20 bg-surface/90 px-6 pt-4"
+          style={{ paddingBottom: Math.max(insets.bottom, 16) }}
+        >
           <PrimaryButton
             label="Continue to Login"
             onPress={() => router.push("/login")}
