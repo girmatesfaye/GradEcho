@@ -1,6 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
+
+import { PrimaryButton } from "@/components/primary-button";
 
 export default function OnboardingArchiveScreen() {
   return (
@@ -24,14 +26,10 @@ export default function OnboardingArchiveScreen() {
             forever in your personal vault.
           </Text>
         </View>
-        <Pressable
+        <PrimaryButton
+          label="Get Started"
           onPress={() => router.push("/user-setup")}
-          className="items-center rounded-full bg-primary-container px-10 py-5 active:opacity-90"
-        >
-          <Text className="font-headline font-bold text-on-primary-container">
-            Get Started
-          </Text>
-        </Pressable>
+        />
         <View className="mt-8 flex-row justify-center gap-2">
           <View className="h-1.5 w-1.5 rounded-full bg-outline-variant/30" />
           <View className="h-1.5 w-1.5 rounded-full bg-outline-variant/30" />

@@ -1,7 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { router } from "expo-router";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
+
+import { PrimaryButton } from "@/components/primary-button";
 
 const BG =
   "https://lh3.googleusercontent.com/aida-public/AB6AXuDkocZ3o_yTYzT2BLJIRjActGvQxZl_RHurn3apPsWECsQZ4exlWlKdjdHOa18Wx7HpDQjYmLbeAvovCBSGKRbNc8k6Cy_lQMs35w9XzoqN7NoenAbslKwC88b-qMHnsyVIrvIR27c9wIzcYSQWMtgdVRn8ijnoDoic2NXdBQ-Nr0sS0tTzh1QFwTMFR_vZJ2DECmzIgtUaDzC3nC_R3czwHQj5Q9X4uXdXPfjRbj4PEUL_YQnOdpb2qqPuO6zv3cbY0t_oNnDoUizg";
@@ -18,7 +20,7 @@ export default function OnboardingCaptureScreen() {
         contentInsetAdjustmentBehavior="automatic"
       >
         <Text className="font-label text-[10px] uppercase tracking-[0.2em] text-secondary-fixed-dim">
-          Step 02 — Memory Hub
+          Step 02 - Memory Hub
         </Text>
         <Text className="mt-2 font-headline text-5xl font-extrabold leading-[0.95] tracking-tighter text-primary">
           Capture Every{" "}
@@ -62,13 +64,12 @@ export default function OnboardingCaptureScreen() {
             <View className="h-1 w-12 rounded-full bg-primary-container" />
             <View className="h-1 w-8 rounded-full bg-surface-container-highest" />
           </View>
-          <Pressable
+          <PrimaryButton
+            label="Next"
             onPress={() => router.push("/connect")}
-            className="flex-row items-center gap-2 rounded-full bg-primary-container px-8 py-4 active:opacity-90"
-          >
-            <Text className="font-headline font-bold text-on-primary-container">Next</Text>
-            <Ionicons name="arrow-forward" size={20} color="#705e00" />
-          </Pressable>
+            rightIcon="arrow-forward"
+            fullWidth={false}
+          />
         </View>
       </ScrollView>
     </View>

@@ -3,6 +3,7 @@ import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import { Pressable, ScrollView, Text, View } from "react-native";
 
+import { SecondaryButton } from "@/components/secondary-button";
 import { TagChip } from "@/components/tag-chip";
 import { getMemoryById } from "@/constants/mock-memories";
 
@@ -16,15 +17,17 @@ export default function MemoryDetailScreen() {
         <Text className="mb-4 text-center font-body text-on-surface-variant">
           Memory not found.
         </Text>
-        <Pressable onPress={() => router.back()} className="rounded-full bg-primary-container px-6 py-3">
-          <Text className="font-label font-bold text-on-primary-container">Go back</Text>
-        </Pressable>
+        <SecondaryButton
+          label="Go back"
+          onPress={() => router.back()}
+          fullWidth={false}
+        />
       </View>
     );
   }
 
   const title = memory.title ?? "The moment we finally made it.";
-  const reflection = memory.reflection ?? `“${memory.quote}”`;
+  const reflection = memory.reflection ?? `"${memory.quote}"`;
 
   return (
     <View className="flex-1 bg-surface">

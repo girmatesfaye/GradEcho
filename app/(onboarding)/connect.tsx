@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import { Pressable, ScrollView, Text, View } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
+import { PrimaryButton } from "@/components/primary-button";
 
 const BG =
   "https://lh3.googleusercontent.com/aida-public/AB6AXuDkocZ3o_yTYzT2BLJIRjActGvQxZl_RHurn3apPsWECsQZ4exlWlKdjdHOa18Wx7HpDQjYmLbeAvovCBSGKRbNc8k6Cy_lQMs35w9XzoqN7NoenAbslKwC88b-qMHnsyVIrvIR27c9wIzcYSQWMtgdVRn8ijnoDoic2NXdBQ-Nr0sS0tTzh1QFwTMFR_vZJ2DECmzIgtUaDzC3nC_R3czwHQj5Q9X4uXdXPfjRbj4PEUL_YQnOdpb2qqPuO6zv3cbY0t_oNnDoUizg";
@@ -62,12 +63,12 @@ export default function OnboardingConnectScreen() {
             </View>
           ))}
         </View>
-        <Pressable
+        <PrimaryButton
+          label="Next"
           onPress={() => router.push("/archive")}
-          className="mt-12 self-end rounded-full bg-primary-container px-10 py-4 active:opacity-90"
-        >
-          <Text className="font-headline font-bold text-on-primary-container">Next</Text>
-        </Pressable>
+          fullWidth={false}
+          className="mt-12 self-end"
+        />
       </ScrollView>
     </View>
   );

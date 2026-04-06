@@ -11,6 +11,8 @@ import {
   View,
 } from "react-native";
 
+import { PrimaryButton } from "@/components/primary-button";
+
 const DEPTS = [
   "Software Engineering",
   "Business Administration",
@@ -117,14 +119,11 @@ export default function UserSetupScreen() {
             />
           </View>
         </View>
-        <Pressable
+        <PrimaryButton
+          label="Enter the Archive"
           onPress={() => router.replace("/home")}
-          className="mt-10 items-center rounded-full bg-primary-container py-5 active:opacity-90"
-        >
-          <Text className="font-headline text-lg font-bold text-on-primary-container">
-            Enter the Archive
-          </Text>
-        </Pressable>
+          className="mt-10"
+        />
       </ScrollView>
     </KeyboardAvoidingView>
   );

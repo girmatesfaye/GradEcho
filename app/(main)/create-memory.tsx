@@ -3,6 +3,8 @@ import { Image } from "expo-image";
 import { router } from "expo-router";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 
+import { PrimaryButton } from "@/components/primary-button";
+
 const HERO =
   "https://lh3.googleusercontent.com/aida-public/AB6AXuD3SI7ZozL6Ty8bYxPxcPEgufRNu54weHaJWR1Nksas5LNYUcjp3LtkCAnWPHo96TibgdFMcfhCUwHQvX1w4TfD3D7JNf69Xqmu3fSCIshRpJjqhvdWreph__lu9QAOmV7cNpRyq-M8XdXAsxpJECXEK7VGzJeKWiJVYHwtn06L3Pc9ePDA6d1_mmkPe6RqOKPWj8ezSf6-OmCqll4-Zt2GNwj8iYCUWFK_TzG26MMnb-LIHfucTtzgwNHEMZpjqoBNGsSeo8mqcHWm";
 
@@ -105,14 +107,12 @@ export default function CreateMemoryScreen() {
             />
           </View>
         </View>
-        <Pressable
+        <PrimaryButton
+          label="Share Memory"
           onPress={() => router.back()}
-          className="items-center rounded-xl bg-primary-container py-6 active:opacity-90"
-        >
-          <Text className="font-headline text-xl font-extrabold tracking-tight text-on-primary">
-            Share Memory
-          </Text>
-        </Pressable>
+          className="h-16"
+          textClassName="font-headline text-xl font-extrabold tracking-tight"
+        />
       </ScrollView>
     </View>
   );

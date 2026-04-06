@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { ScrollView, Text, View } from "react-native";
 
@@ -32,7 +33,7 @@ export default function ProfileScreen() {
               </View>
             </View>
             <View className="absolute -bottom-1 -right-1 h-6 w-6 items-center justify-center rounded-full bg-primary-container">
-              <Text className="text-xs text-on-primary-container">✓</Text>
+              <Ionicons name="checkmark" size={14} color="#705e00" />
             </View>
           </View>
           <View>
