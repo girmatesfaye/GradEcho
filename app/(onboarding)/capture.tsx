@@ -6,30 +6,27 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { PrimaryButton } from "@/components/primary-button";
 
-const BG =
-  "https://lh3.googleusercontent.com/aida-public/AB6AXuDkocZ3o_yTYzT2BLJIRjActGvQxZl_RHurn3apPsWECsQZ4exlWlKdjdHOa18Wx7HpDQjYmLbeAvovCBSGKRbNc8k6Cy_lQMs35w9XzoqN7NoenAbslKwC88b-qMHnsyVIrvIR27c9wIzcYSQWMtgdVRn8ijnoDoic2NXdBQ-Nr0sS0tTzh1QFwTMFR_vZJ2DECmzIgtUaDzC3nC_R3czwHQj5Q9X4uXdXPfjRbj4PEUL_YQnOdpb2qqPuO6zv3cbY0t_oNnDoUizg";
-const STITCH_PLACEHOLDER = require("../../assets/stitch/onboarding-capture.png");
+const BG = require("../../assets/stitch/onboarding-capture.png");
 
 export default function OnboardingCaptureScreen() {
   return (
     <SafeAreaView className="flex-1 bg-surface" edges={["top", "bottom"]}>
       <View className="absolute inset-0">
         <Image
-          source={{ uri: BG }}
-          placeholder={STITCH_PLACEHOLDER}
+          source={BG}
           className="h-full w-full opacity-90"
           contentFit="cover"
         />
         <View className="absolute inset-0 bg-surface/70" />
       </View>
-      <View className="z-10 flex-row items-center justify-between bg-surface/60 px-6 py-4">
-        <Pressable onPress={() => router.replace("/welcome")} hitSlop={12}>
+      <View className="z-10 flex-row items-center justify-end bg-surface/60 px-6 py-4 border-b border-outline-variant/20">
+        {/* <Pressable onPress={() => router.push("/welcome")} hitSlop={12}>
           <Ionicons name="arrow-back" size={24} color="#ffd700" />
         </Pressable>
         <Text className="font-headline text-base font-black italic tracking-tighter text-primary-container">
           The Keepsake
-        </Text>
-        <Pressable onPress={() => router.replace("/user-setup")}>
+        </Text> */}
+        <Pressable onPress={() => router.push("/user-setup")}>
           <Text className="font-headline font-bold text-primary-container">
             Skip
           </Text>
@@ -40,9 +37,6 @@ export default function OnboardingCaptureScreen() {
         contentContainerClassName="pb-40"
         contentInsetAdjustmentBehavior="automatic"
       >
-        <Text className="font-label text-[10px] uppercase tracking-[0.2em] text-secondary-fixed-dim">
-          Step 02 - Memory Hub
-        </Text>
         <Text className="mt-2 font-headline text-5xl font-extrabold leading-[0.95] tracking-tighter text-primary">
           Capture Every{" "}
           <Text className="italic text-primary-container">Emotion</Text>
@@ -88,7 +82,7 @@ export default function OnboardingCaptureScreen() {
         </View>
         <PrimaryButton
           label="Next"
-          onPress={() => router.replace("/connect")}
+          onPress={() => router.push("/connect")}
           rightIcon="arrow-forward"
         />
       </View>

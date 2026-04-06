@@ -6,9 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { PrimaryButton } from "@/components/primary-button";
 import { Ionicons } from "@expo/vector-icons";
 
-const BG =
-  "https://lh3.googleusercontent.com/aida-public/AB6AXuDkocZ3o_yTYzT2BLJIRjActGvQxZl_RHurn3apPsWECsQZ4exlWlKdjdHOa18Wx7HpDQjYmLbeAvovCBSGKRbNc8k6Cy_lQMs35w9XzoqN7NoenAbslKwC88b-qMHnsyVIrvIR27c9wIzcYSQWMtgdVRn8ijnoDoic2NXdBQ-Nr0sS0tTzh1QFwTMFR_vZJ2DECmzIgtUaDzC3nC_R3czwHQj5Q9X4uXdXPfjRbj4PEUL_YQnOdpb2qqPuO6zv3cbY0t_oNnDoUizg";
-const STITCH_PLACEHOLDER = require("../../assets/stitch/onboarding-connect.png");
+const BG = require("../../assets/stitch/onboarding-connect.png");
 
 const PEERS = [
   "https://lh3.googleusercontent.com/aida-public/AB6AXuBQopw5sJBLnIX9IXbDee7WqWE1V8ngLW4eslrqPscCEkqJ5VmKZFJts3DkQCYZ3X9mPA0rIUW6ZYHwbiofCBe5_kBSoxbJFIDB8LD_u8BI_5VjvJwmV53RxnvNKHH3nlSoMX3wTNFHiOiMo0DIocVWqo5Be5d8XnqkrSkU9skYrCTaMF79nmdiYUPGGdS3rrjy-7SVcgqxYVAOxieiTANnVxSv9MSSPRYlexH4AU763WavKI5-KJHhbZ7SADLFfWgJedet-Zd1ig63",
@@ -19,22 +17,17 @@ export default function OnboardingConnectScreen() {
   return (
     <SafeAreaView className="flex-1 bg-surface" edges={["top", "bottom"]}>
       <View className="absolute inset-0 z-0">
-        <Image
-          source={{ uri: BG }}
-          placeholder={STITCH_PLACEHOLDER}
-          className="h-full w-full"
-          contentFit="cover"
-        />
+        <Image source={BG} className="h-full w-full" contentFit="cover" />
         <View className="absolute inset-0 bg-surface/50" />
       </View>
       <View className="z-10 flex-row items-center justify-between bg-surface/60 px-6 py-4">
-        <Pressable onPress={() => router.replace("/capture")} hitSlop={12}>
+        <Pressable onPress={() => router.back()} hitSlop={12}>
           <Ionicons name="arrow-back" size={24} color="#ffd700" />
         </Pressable>
-        <Text className="font-headline text-base font-black italic tracking-tighter text-primary-container">
+        {/* <Text className="font-headline text-base font-black italic tracking-tighter text-primary-container">
           The Keepsake
-        </Text>
-        <Pressable onPress={() => router.replace("/user-setup")}>
+        </Text> */}
+        <Pressable onPress={() => router.push("/user-setup")}>
           <Text className="font-headline font-bold text-primary-container">
             Skip
           </Text>
@@ -45,11 +38,6 @@ export default function OnboardingConnectScreen() {
         contentContainerClassName="pb-40"
         contentInsetAdjustmentBehavior="automatic"
       >
-        <View className="mb-8 flex-row gap-3">
-          <View className="h-0.5 w-8 rounded-full bg-on-surface-variant/30" />
-          <View className="h-0.5 w-8 rounded-full bg-on-surface-variant/30" />
-          <View className="h-1 w-12 rounded-full bg-primary-container" />
-        </View>
         <Text className="font-headline text-5xl font-extrabold leading-[0.9] tracking-tighter text-primary">
           Celebrate{"\n"}
           <Text className="text-primary-container">Together</Text>
@@ -86,7 +74,7 @@ export default function OnboardingConnectScreen() {
         </View>
         <PrimaryButton
           label="Next"
-          onPress={() => router.replace("/archive")}
+          onPress={() => router.push("/archive")}
           rightIcon="arrow-forward"
         />
       </View>

@@ -1,10 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   Text,
   TextInput,
@@ -15,25 +15,31 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { PrimaryButton } from "@/components/primary-button";
 import { SecondaryButton } from "@/components/secondary-button";
 
+const BG = require("../assets/stitch/user-setup.png");
+
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   return (
     <SafeAreaView className="flex-1 bg-surface" edges={["top", "bottom"]}>
-      <View className="z-10 flex-row items-center justify-between bg-surface/60 px-6 py-4">
-        <Pressable onPress={() => router.replace("/user-setup")} hitSlop={12}>
+      <View className="absolute inset-0">
+        <Image source={BG} className="h-full w-full" contentFit="cover" />
+        <View className="absolute inset-0 bg-surface/78" />
+      </View>
+      {/* <View className="z-10 flex-row items-center justify-between bg-surface/60 px-6 py-4">
+        <Pressable onPress={() => router.back()} hitSlop={12}>
           <Ionicons name="arrow-back" size={24} color="#ffd700" />
         </Pressable>
         <Text className="font-headline text-base font-black italic tracking-tighter text-primary-container">
           The Keepsake
         </Text>
-        <Pressable onPress={() => router.replace("/home")}>
+        <Pressable onPress={() => router.push("/home")}>
           <Text className="font-headline font-bold text-primary-container">
             Skip
           </Text>
         </Pressable>
-      </View>
+      </View> */}
       <KeyboardAvoidingView
         className="flex-1"
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -102,12 +108,12 @@ export default function LoginScreen() {
         <View className="border-t border-outline-variant/20 bg-surface/90 px-6 pb-6 pt-4">
           <PrimaryButton
             label="Login"
-            onPress={() => router.replace("/home")}
+            onPress={() => router.push("/home")}
             rightIcon="arrow-forward"
           />
           <SecondaryButton
             label="Create New Account"
-            onPress={() => router.replace("/user-setup")}
+            onPress={() => router.push("/user-setup")}
             className="mt-3"
           />
         </View>
