@@ -75,15 +75,18 @@ export function MemoryCard({ memory, onPress, variant = "feed" }: Props) {
                 {variant === "profile" ? "Listen" : "Listen to Memory"}
               </Text>
             </Pressable>
-            <View className="flex-row items-center gap-4">
+            <View className="flex-row items-center gap-3">
               {memory.dateLabel ? (
                 <Text className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant opacity-60">
                   {memory.dateLabel}
                 </Text>
               ) : (
-                <Pressable className="rounded-full bg-white/5 p-2">
-                  <Ionicons name="heart" size={22} color="#fff6df" />
-                </Pressable>
+                <View className="flex-row items-center gap-2 rounded-full bg-white/5 px-3 py-2">
+                  <Ionicons name="heart" size={18} color="#fff6df" />
+                  <Text className="font-label text-[10px] font-bold uppercase tracking-widest text-primary">
+                    {memory.likesCount ?? "0"}
+                  </Text>
+                </View>
               )}
             </View>
           </View>

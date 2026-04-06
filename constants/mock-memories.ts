@@ -14,6 +14,7 @@ export const MOCK_MEMORIES: Memory[] = [
     quote:
       "Four years of late nights and endless coffee. We finally made it, team! Can't wait to see where we all go next.",
     tags: ["#GRADUATION", "#MEMORIES", "#CLASS2024"],
+    likesCount: "1.2K",
     title: "The moment we finally made it.",
     reflection:
       "Walking across that stage felt like a movie. Four years of late nights and endless coffee led to this single second of pure joy.",
@@ -33,6 +34,7 @@ export const MOCK_MEMORIES: Memory[] = [
     quote:
       "The drafting room at 3 AM hit differently. This building holds all our dreams and a lot of lost sleep.",
     tags: ["#ARCHITECTURE", "#LATE-NIGHTS", "#CLASS2024"],
+    likesCount: "864",
   },
   {
     id: "3",
@@ -45,6 +47,7 @@ export const MOCK_MEMORIES: Memory[] = [
       "https://lh3.googleusercontent.com/aida-public/AB6AXuDigwncOBpv2TXfewZ5ZQuJATfKG2H0vfcY5AzyUY2SmhrK72YjKvnNn3dTRKb79BPr100UkJEBb1-CLhQwi7bQTw2M2jGVH-1gErJP3W2GvT1oeWTSZxLoCiZ1Z74Ef6y8Incvc0M0hM86RyHCDLSafFCW991BKHCrVao7FjOsKbyIWPLFrGI-m0tVFby1TK0x7GpDAxqq1TgRt-qqZdo3fjWNGVCuWckcLk-iybxqGS7h99Fjfaoh5ZxyR9KpGCPGQXr_pp9n0SJh",
     quote: "Last lecture, best friends. The quad will never look the same.",
     tags: ["#FRIENDS", "#FINALS", "#CLASS2024"],
+    likesCount: "942",
   },
 ];
 

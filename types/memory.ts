@@ -8,6 +8,7 @@ export type Memory = {
   quote: string;
   tags: string[];
   dateLabel?: string;
+  likesCount?: string;
   title?: string;
   reflection?: string;
   hasVoice?: boolean;
