@@ -1,8 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
+import * as Linking from "expo-linking";
+import * as WebBrowser from "expo-web-browser";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -17,13 +20,92 @@ import {
 
 import { PrimaryButton } from "@/components/primary-button";
 import { SecondaryButton } from "@/components/secondary-button";
+import { supabase } from "@/lib/supabase";
 
 const BG = require("../assets/stitch/user-setup.png");
+
+WebBrowser.maybeCompleteAuthSession();
+
+function parseTokensFromUrl(url: string) {
+  const hash = url.split("#")[1] ?? "";
+  const params = new URLSearchParams(hash);
+  const access_token = params.get("access_token");
+  const refresh_token = params.get("refresh_token");
+
+  if (!access_token || !refresh_token) {
+    return null;
+  }
+
+  return { access_token, refresh_token };
+}
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert("Missing fields", "Please enter both email and password.");
+      return;
+    }
+
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    setLoading(false);
+
+    if (error) {
+      Alert.alert("Login failed", error.message);
+      return;
+    }
+
+    router.replace("/home");
+  };
+
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    const redirectTo = Linking.createURL("auth/callback");
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo,
+        skipBrowserRedirect: true,
+      },
+    });
+
+    if (error || !data?.url) {
+      setLoading(false);
+      Alert.alert("Google sign in failed", error?.message ?? "No auth URL returned.");
+      return;
+    }
+
+    const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+
+    if (result.type !== "success" || !result.url) {
+      setLoading(false);
+      return;
+    }
+
+    const tokens = parseTokensFromUrl(result.url);
+
+    if (!tokens) {
+      setLoading(false);
+      Alert.alert("Google sign in failed", "Could not extract auth tokens.");
+      return;
+    }
+
+    const { error: sessionError } = await supabase.auth.setSession(tokens);
+    setLoading(false);
+
+    if (sessionError) {
+      Alert.alert("Google sign in failed", sessionError.message);
+      return;
+    }
+
+    router.replace("/home");
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-surface" edges={["top", "bottom"]}>
@@ -118,13 +200,21 @@ export default function LoginScreen() {
         >
           <PrimaryButton
             label="Login"
-            onPress={() => router.push("/home")}
+            onPress={handleLogin}
             rightIcon="arrow-forward"
+            disabled={loading}
+          />
+          <SecondaryButton
+            label="Continue with Google"
+            onPress={handleGoogleSignIn}
+            className="mt-3"
+            disabled={loading}
           />
           <SecondaryButton
             label="Create New Account"
             onPress={() => router.push("/user-setup")}
             className="mt-3"
+            disabled={loading}
           />
         </View>
       </KeyboardAvoidingView>

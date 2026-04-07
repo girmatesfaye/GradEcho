@@ -3,6 +3,7 @@ import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -17,6 +18,7 @@ import {
 } from "react-native-safe-area-context";
 
 import { PrimaryButton } from "@/components/primary-button";
+import { supabase } from "@/lib/supabase";
 
 const BG = require("../assets/stitch/user-setup.png");
 
@@ -36,6 +38,50 @@ export default function UserSetupScreen() {
   const [year, setYear] = useState("2024");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSignUp = async () => {
+    if (!name || !university || !email || !password) {
+      Alert.alert("Missing fields", "Please complete all required fields.");
+      return;
+    }
+
+    if (password.length < 6) {
+      Alert.alert("Weak password", "Password should be at least 6 characters.");
+      return;
+    }
+
+    setLoading(true);
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: name,
+          university,
+          department,
+          graduation_year: year,
+        },
+      },
+    });
+    setLoading(false);
+
+    if (error) {
+      Alert.alert("Sign up failed", error.message);
+      return;
+    }
+
+    if (data.session) {
+      router.replace("/home");
+      return;
+    }
+
+    Alert.alert(
+      "Check your email",
+      "We sent a confirmation link. Verify your email, then sign in."
+    );
+    router.replace("/login");
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-surface" edges={["top", "bottom"]}>
@@ -200,8 +246,9 @@ export default function UserSetupScreen() {
         >
           <PrimaryButton
             label="Continue to Login"
-            onPress={() => router.push("/login")}
+            onPress={handleSignUp}
             rightIcon="arrow-forward"
+            disabled={loading}
           />
         </View>
       </KeyboardAvoidingView>
