@@ -6,7 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { PrimaryButton } from "@/components/primary-button";
 import { Ionicons } from "@expo/vector-icons";
 
-const BG = require("../../assets/stitch/onboarding-connect.png");
+const BG = require("../../assets/images/Connect-screen.png");
 
 const PEERS = [
   "https://lh3.googleusercontent.com/aida-public/AB6AXuBQopw5sJBLnIX9IXbDee7WqWE1V8ngLW4eslrqPscCEkqJ5VmKZFJts3DkQCYZ3X9mPA0rIUW6ZYHwbiofCBe5_kBSoxbJFIDB8LD_u8BI_5VjvJwmV53RxnvNKHH3nlSoMX3wTNFHiOiMo0DIocVWqo5Be5d8XnqkrSkU9skYrCTaMF79nmdiYUPGGdS3rrjy-7SVcgqxYVAOxieiTANnVxSv9MSSPRYlexH4AU763WavKI5-KJHhbZ7SADLFfWgJedet-Zd1ig63",

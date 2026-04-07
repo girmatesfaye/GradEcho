@@ -6,7 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { PrimaryButton } from "@/components/primary-button";
 
-const BG = require("../../assets/stitch/onboarding-archive.png");
+const BG = require("../../assets/images/Archive-screen.png");
 
 export default function OnboardingArchiveScreen() {
   return (
