@@ -77,6 +77,8 @@ export default function CreateMemoryScreen() {
   const recordingRef = useRef<Audio.Recording | null>(null);
   const [recordingMillis, setRecordingMillis] = useState(0);
   const [voiceUri, setVoiceUri] = useState<string | null>(null);
+  const [voiceBase64, setVoiceBase64] = useState<string | null>(null);
+  const [voiceExtension, setVoiceExtension] = useState<string>("m4a");
   const [voiceDuration, setVoiceDuration] = useState<string | null>(null);
   const [quote, setQuote] = useState("");
   const [reflection, setReflection] = useState("");
@@ -178,6 +180,8 @@ export default function CreateMemoryScreen() {
         voiceUrl = await uploadMemoryAudio({
           userId: user.id,
           uri: voiceUri,
+          base64: voiceBase64 ?? undefined,
+          extension: voiceExtension,
         });
       }
 
@@ -229,6 +233,8 @@ export default function CreateMemoryScreen() {
 
     try {
       setVoiceUri(null);
+      setVoiceBase64(null);
+      setVoiceExtension("m4a");
       setVoiceDuration(null);
       setRecordingMillis(0);
 
@@ -267,8 +273,48 @@ export default function CreateMemoryScreen() {
 
       await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
 
-      setVoiceUri(uri ?? null);
-      setVoiceDuration(uri ? duration : null);
+      if (uri) {
+        let normalizedVoiceUri = uri;
+        let extension =
+          uri.split(".").pop()?.split("?")[0]?.split("#")[0]?.toLowerCase() ??
+          "m4a";
+
+        try {
+          normalizedVoiceUri = await normalizeAssetUri(uri, "m4a");
+          extension =
+            normalizedVoiceUri
+              .split(".")
+              .pop()
+              ?.split("?")[0]
+              ?.split("#")[0]
+              ?.toLowerCase() ?? "m4a";
+        } catch {
+          // Keep original URI if cache copy fails.
+        }
+
+        let encodedVoice: string | null = null;
+        try {
+          encodedVoice = await FileSystem.readAsStringAsync(
+            normalizedVoiceUri,
+            {
+              encoding: "base64",
+            },
+          );
+        } catch {
+          encodedVoice = null;
+        }
+
+        setVoiceUri(normalizedVoiceUri);
+        setVoiceBase64(encodedVoice);
+        setVoiceExtension(extension);
+        setVoiceDuration(duration);
+      } else {
+        setVoiceUri(null);
+        setVoiceBase64(null);
+        setVoiceExtension("m4a");
+        setVoiceDuration(null);
+      }
+
       setRecording(null);
     } catch (error) {
       const message =

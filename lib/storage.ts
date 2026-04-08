@@ -102,17 +102,27 @@ export async function uploadMemoryImage({
 export async function uploadMemoryAudio({
   userId,
   uri,
+  base64,
+  extension,
 }: {
   userId: string;
-  uri: string;
+  uri?: string;
+  base64?: string;
+  extension?: string;
 }) {
-  const fileExtension = getFileExtension(uri, "m4a");
+  const fileExtension = extension ?? getFileExtension(uri ?? "", "m4a");
   const mimeType = getAudioMimeTypeFromExtension(fileExtension);
   const filePath = `${userId}/${Date.now()}-voice.${fileExtension}`;
 
   let bytes: ArrayBuffer;
   try {
-    bytes = await uriToArrayBuffer(uri);
+    if (base64) {
+      bytes = decode(base64);
+    } else if (uri) {
+      bytes = await uriToArrayBuffer(uri);
+    } else {
+      throw new Error("No audio source provided.");
+    }
   } catch {
     throw new Error("Could not read recorded audio file.");
   }
