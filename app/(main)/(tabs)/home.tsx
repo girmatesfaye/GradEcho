@@ -1,11 +1,13 @@
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 
 import { FeedHeader } from "@/components/feed-header";
 import { MemoryCard } from "@/components/memory-card";
 import { MOCK_MEMORIES } from "@/constants/mock-memories";
 import { fetchMemories } from "@/lib/memories";
+import { fetchCurrentProfile } from "@/lib/profiles";
+import { supabase } from "@/lib/supabase";
 import type { Memory } from "@/types/memory";
 
 const AVATAR =
@@ -15,16 +17,24 @@ const FILTERS = ["All", "My University", "My Department", "My Batch"] as const;
 
 export default function HomeFeedScreen() {
   const [isAdminMode, setIsAdminMode] = useState(false);
+  const [isAdminUser, setIsAdminUser] = useState(false);
   const [memories, setMemories] = useState<Memory[]>(MOCK_MEMORIES);
   const [loading, setLoading] = useState(true);
   const [usingFallback, setUsingFallback] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
 
     const loadMemories = async () => {
       setLoading(true);
-      const nextMemories = await fetchMemories();
+      setDeleteError(null);
+
+      const [nextMemories, currentProfile] = await Promise.all([
+        fetchMemories(),
+        fetchCurrentProfile(),
+      ]);
 
       if (!isMounted) {
         return;
@@ -32,6 +42,8 @@ export default function HomeFeedScreen() {
 
       setMemories(nextMemories);
       setUsingFallback(nextMemories === MOCK_MEMORIES);
+      setIsAdminUser(currentProfile?.is_admin ?? false);
+      setIsAdminMode(false);
       setLoading(false);
     };
 
@@ -42,17 +54,57 @@ export default function HomeFeedScreen() {
     };
   }, []);
 
-  const handleDeleteMemory = (id: string) => {
+  const handleDeleteMemory = async (id: string) => {
+    if (usingFallback) {
+      setDeleteError(
+        "Delete is disabled while the feed is using local fallback data.",
+      );
+      Alert.alert(
+        "Fallback feed",
+        "Connect to Supabase data before moderating posts.",
+      );
+      return;
+    }
+
+    setDeletingId(id);
+    setDeleteError(null);
+
+    const { error } = await supabase.from("memories").delete().eq("id", id);
+
+    setDeletingId(null);
+
+    if (error) {
+      setDeleteError(
+        error.message ||
+          "Delete failed. Supabase rejected the moderation request.",
+      );
+      Alert.alert("Delete failed", error.message);
+      return;
+    }
+
     setMemories((prev) => prev.filter((m) => m.id !== id));
   };
+
+  const canModerate = isAdminUser && !usingFallback;
 
   return (
     <View className="flex-1 bg-surface">
       <FeedHeader
         avatarUri={AVATAR}
         isAdminMode={isAdminMode}
-        onAvatarPress={() => router.push("/admin" as never)}
-        onAvatarLongPress={() => setIsAdminMode((v) => !v)}
+        onAvatarPress={() =>
+          router.push((isAdminUser ? "/admin" : "/profile") as never)
+        }
+        onAvatarLongPress={() => {
+          if (!isAdminUser) {
+            setDeleteError(
+              "Admin mode is only available for Supabase admin accounts.",
+            );
+            return;
+          }
+
+          setIsAdminMode((v) => !v);
+        }}
       />
       <ScrollView
         className="flex-1 px-4 pt-4"
@@ -76,8 +128,14 @@ export default function HomeFeedScreen() {
         {isAdminMode ? (
           <View className="mb-4 rounded-xl border border-error/30 bg-error/10 px-4 py-3">
             <Text className="font-label text-[10px] font-bold uppercase tracking-widest text-error">
-              Admin mode enabled: tap trash icon on any post to delete it from
-              feed.
+              Admin mode enabled: delete actions now go through Supabase RLS.
+            </Text>
+          </View>
+        ) : null}
+        {deleteError ? (
+          <View className="mb-4 rounded-xl border border-error/30 bg-error/10 px-4 py-3">
+            <Text className="font-label text-[10px] font-bold uppercase tracking-widest text-error">
+              {deleteError}
             </Text>
           </View>
         ) : null}
@@ -104,8 +162,9 @@ export default function HomeFeedScreen() {
           <MemoryCard
             key={m.id}
             memory={m}
-            showDelete={isAdminMode}
+            showDelete={isAdminMode && canModerate}
             onDelete={handleDeleteMemory}
+            deleting={deletingId === m.id}
             onPress={() =>
               router.push({ pathname: "/memory/[id]", params: { id: m.id } })
             }

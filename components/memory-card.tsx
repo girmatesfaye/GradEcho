@@ -12,6 +12,7 @@ type Props = {
   variant?: "feed" | "profile";
   showDelete?: boolean;
   onDelete?: (id: string) => void;
+  deleting?: boolean;
 };
 
 export function MemoryCard({
@@ -20,6 +21,7 @@ export function MemoryCard({
   variant = "feed",
   showDelete = false,
   onDelete,
+  deleting = false,
 }: Props) {
   const handleDelete = (e: GestureResponderEvent) => {
     e.stopPropagation();
@@ -62,9 +64,14 @@ export function MemoryCard({
           <Pressable
             accessibilityLabel="Delete memory"
             onPress={handleDelete}
+            disabled={deleting}
             className="absolute right-4 top-4 z-10 rounded-full bg-surface-container-lowest/40 p-2"
           >
-            <Ionicons name="trash-outline" size={18} color="#d0c6ab" />
+            <Ionicons
+              name={deleting ? "hourglass-outline" : "trash-outline"}
+              size={18}
+              color="#d0c6ab"
+            />
           </Pressable>
         ) : null}
         <Image
