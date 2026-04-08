@@ -1,8 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
+import { Audio } from "expo-av";
+import * as FileSystem from "expo-file-system";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -20,7 +22,7 @@ import {
 } from "react-native-safe-area-context";
 
 import { PrimaryButton } from "@/components/primary-button";
-import { uploadMemoryImage } from "@/lib/storage";
+import { uploadMemoryAudio, uploadMemoryImage } from "@/lib/storage";
 import { supabase } from "@/lib/supabase";
 
 const USER_AVATAR =
@@ -43,15 +45,66 @@ function parseTags(rawTags: string) {
     .map((tag) => (tag.startsWith("#") ? tag : `#${tag}`));
 }
 
+function formatDuration(ms: number) {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60)
+    .toString()
+    .padStart(2, "0");
+  const seconds = (totalSeconds % 60).toString().padStart(2, "0");
+
+  return `${minutes}:${seconds}`;
+}
+
+async function normalizeAssetUri(uri: string, extensionFallback: string) {
+  const safeExtension =
+    uri.split(".").pop()?.split("?")[0]?.split("#")[0] || extensionFallback;
+  const destination = `${FileSystem.Paths.cache.uri}gradecho-${Date.now()}.${safeExtension}`;
+
+  await FileSystem.copyAsync({
+    from: uri,
+    to: destination,
+  });
+
+  return destination;
+}
+
 export default function CreateMemoryScreen() {
   const insets = useSafeAreaInsets();
   const [coverUri, setCoverUri] = useState<string | null>(null);
+  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const recordingRef = useRef<Audio.Recording | null>(null);
+  const [recordingMillis, setRecordingMillis] = useState(0);
+  const [voiceUri, setVoiceUri] = useState<string | null>(null);
+  const [voiceDuration, setVoiceDuration] = useState<string | null>(null);
   const [quote, setQuote] = useState("");
   const [reflection, setReflection] = useState("");
   const [tagsText, setTagsText] = useState("#graduation #memories");
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    recordingRef.current = recording;
+  }, [recording]);
+
+  useEffect(() => {
+    return () => {
+      if (recordingRef.current) {
+        void recordingRef.current.stopAndUnloadAsync().catch(() => {
+          // Ignore cleanup races when the recording was already unloaded.
+        });
+      }
+    };
+  }, []);
+
   const pickCoverImage = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert(
+        "Permission required",
+        "Please allow photo library access to choose a cover image.",
+      );
+      return;
+    }
+
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
@@ -60,7 +113,19 @@ export default function CreateMemoryScreen() {
     });
 
     if (!result.canceled) {
-      setCoverUri(result.assets[0]?.uri ?? null);
+      const picked = result.assets[0]?.uri;
+      if (!picked) {
+        setCoverUri(null);
+        return;
+      }
+
+      try {
+        const normalized = await normalizeAssetUri(picked, "jpg");
+        setCoverUri(normalized);
+      } catch {
+        // Fallback to the original URI when copy fails.
+        setCoverUri(picked);
+      }
     }
   };
 
@@ -95,15 +160,23 @@ export default function CreateMemoryScreen() {
         uri: coverUri,
       });
 
+      let voiceUrl: string | null = null;
+      if (voiceUri) {
+        voiceUrl = await uploadMemoryAudio({
+          userId: user.id,
+          uri: voiceUri,
+        });
+      }
+
       const payload = {
         user_id: user.id,
         title: buildTitle(quote),
         quote: quote.trim(),
         reflection: reflection.trim() || null,
         image_url: imageUrl,
-        voice_url: null,
-        voice_label: null,
-        voice_duration: null,
+        voice_url: voiceUrl,
+        voice_label: voiceUrl ? "Voice Memo" : null,
+        voice_duration: voiceUrl ? voiceDuration : null,
         tags: parseTags(tagsText),
       };
 
@@ -121,9 +194,74 @@ export default function CreateMemoryScreen() {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Could not save memory.";
-      Alert.alert("Upload failed", message);
+      Alert.alert("Upload failed", `Create-memory failed: ${message}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const startVoiceRecording = async () => {
+    if (recording) {
+      return;
+    }
+
+    const permission = await Audio.requestPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert(
+        "Microphone required",
+        "Please allow microphone access to record voice memories.",
+      );
+      return;
+    }
+
+    try {
+      setVoiceUri(null);
+      setVoiceDuration(null);
+      setRecordingMillis(0);
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      const { recording: nextRecording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY,
+        (status) => {
+          if (status.isRecording) {
+            setRecordingMillis(status.durationMillis ?? 0);
+          }
+        },
+        300,
+      );
+
+      setRecording(nextRecording);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Could not start recording.";
+      Alert.alert("Recording failed", message);
+    }
+  };
+
+  const stopVoiceRecording = async () => {
+    if (!recording) {
+      return;
+    }
+
+    try {
+      await recording.stopAndUnloadAsync();
+      const uri = recording.getURI();
+      const duration = formatDuration(recordingMillis);
+
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
+
+      setVoiceUri(uri ?? null);
+      setVoiceDuration(uri ? duration : null);
+      setRecording(null);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Could not stop recording.";
+      Alert.alert("Recording failed", message);
+      setRecording(null);
     }
   };
 
@@ -213,11 +351,46 @@ export default function CreateMemoryScreen() {
               placeholderTextColor="#353534"
               className="min-h-[120px] flex-1 font-headline text-xl text-on-surface"
             />
-            <View className="mt-4 flex-row items-center gap-3 rounded-full border border-outline-variant/10 bg-surface-container-low px-4 py-3">
-              <Ionicons name="mic" size={18} color="#ffd700" />
-              <Text className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant">
-                Voice memo upload coming next
-              </Text>
+            <View className="mt-4 gap-3 rounded-2xl border border-outline-variant/10 bg-surface-container-low px-4 py-3">
+              <View className="flex-row items-center justify-between">
+                <View className="flex-row items-center gap-3">
+                  <Ionicons
+                    name={recording ? "radio" : "mic"}
+                    size={18}
+                    color="#ffd700"
+                  />
+                  <Text className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant">
+                    {recording
+                      ? `Recording ${formatDuration(recordingMillis)}`
+                      : voiceUri
+                        ? `Voice memo ready (${voiceDuration ?? "00:00"})`
+                        : "Optional voice memo"}
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={recording ? stopVoiceRecording : startVoiceRecording}
+                  className={`rounded-full px-4 py-2 ${recording ? "bg-error/20" : "bg-primary-container/20"}`}
+                >
+                  <Text
+                    className={`font-label text-[10px] font-bold uppercase tracking-widest ${recording ? "text-error" : "text-primary"}`}
+                  >
+                    {recording ? "Stop" : "Record"}
+                  </Text>
+                </Pressable>
+              </View>
+              {voiceUri ? (
+                <Pressable
+                  onPress={() => {
+                    setVoiceUri(null);
+                    setVoiceDuration(null);
+                  }}
+                  className="self-start rounded-full border border-outline-variant/20 px-3 py-1.5"
+                >
+                  <Text className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant">
+                    Remove voice memo
+                  </Text>
+                </Pressable>
+              ) : null}
             </View>
           </View>
 
