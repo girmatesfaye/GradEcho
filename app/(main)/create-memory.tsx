@@ -71,6 +71,8 @@ async function normalizeAssetUri(uri: string, extensionFallback: string) {
 export default function CreateMemoryScreen() {
   const insets = useSafeAreaInsets();
   const [coverUri, setCoverUri] = useState<string | null>(null);
+  const [coverBase64, setCoverBase64] = useState<string | null>(null);
+  const [coverExtension, setCoverExtension] = useState<string>("jpg");
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const recordingRef = useRef<Audio.Recording | null>(null);
   const [recordingMillis, setRecordingMillis] = useState(0);
@@ -110,14 +112,23 @@ export default function CreateMemoryScreen() {
       allowsEditing: true,
       aspect: [4, 5],
       quality: 0.9,
+      base64: true,
     });
 
     if (!result.canceled) {
       const picked = result.assets[0]?.uri;
+      const pickedBase64 = result.assets[0]?.base64 ?? null;
+      const pickedExtension =
+        result.assets[0]?.fileName?.split(".").pop()?.toLowerCase() ?? "jpg";
+
       if (!picked) {
         setCoverUri(null);
+        setCoverBase64(null);
         return;
       }
+
+      setCoverBase64(pickedBase64);
+      setCoverExtension(pickedExtension);
 
       try {
         const normalized = await normalizeAssetUri(picked, "jpg");
@@ -158,6 +169,8 @@ export default function CreateMemoryScreen() {
       const imageUrl = await uploadMemoryImage({
         userId: user.id,
         uri: coverUri,
+        base64: coverBase64 ?? undefined,
+        extension: coverExtension,
       });
 
       let voiceUrl: string | null = null;

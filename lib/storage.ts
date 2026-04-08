@@ -1,23 +1,16 @@
+import { decode } from "base64-arraybuffer";
+import * as FileSystem from "expo-file-system";
+
 import { supabase } from "@/lib/supabase";
 
 const MEMORY_MEDIA_BUCKET = "memory-media";
 
-function uriToBlob(uri: string): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-
-    xhr.onload = () => {
-      resolve(xhr.response as Blob);
-    };
-
-    xhr.onerror = () => {
-      reject(new Error("Failed to read file for upload."));
-    };
-
-    xhr.responseType = "blob";
-    xhr.open("GET", uri, true);
-    xhr.send();
+async function uriToArrayBuffer(uri: string): Promise<ArrayBuffer> {
+  const base64 = await FileSystem.readAsStringAsync(uri, {
+    encoding: "base64",
   });
+
+  return decode(base64);
 }
 
 function getFileExtension(uri: string, fallback = "jpg") {
@@ -63,19 +56,34 @@ function getAudioMimeTypeFromExtension(extension: string) {
 export async function uploadMemoryImage({
   userId,
   uri,
+  base64,
+  extension,
 }: {
   userId: string;
-  uri: string;
+  uri?: string;
+  base64?: string;
+  extension?: string;
 }) {
-  const fileExtension = getFileExtension(uri);
+  const fileExtension = extension ?? getFileExtension(uri ?? "", "jpg");
   const mimeType = getMimeTypeFromExtension(fileExtension);
   const filePath = `${userId}/${Date.now()}.${fileExtension}`;
 
-  const blob = await uriToBlob(uri);
+  let bytes: ArrayBuffer;
+  try {
+    if (base64) {
+      bytes = decode(base64);
+    } else if (uri) {
+      bytes = await uriToArrayBuffer(uri);
+    } else {
+      throw new Error("No image source provided.");
+    }
+  } catch {
+    throw new Error("Could not read selected image file.");
+  }
 
   const { error } = await supabase.storage
     .from(MEMORY_MEDIA_BUCKET)
-    .upload(filePath, blob, {
+    .upload(filePath, bytes, {
       contentType: mimeType,
       upsert: false,
     });
@@ -102,11 +110,16 @@ export async function uploadMemoryAudio({
   const mimeType = getAudioMimeTypeFromExtension(fileExtension);
   const filePath = `${userId}/${Date.now()}-voice.${fileExtension}`;
 
-  const blob = await uriToBlob(uri);
+  let bytes: ArrayBuffer;
+  try {
+    bytes = await uriToArrayBuffer(uri);
+  } catch {
+    throw new Error("Could not read recorded audio file.");
+  }
 
   const { error } = await supabase.storage
     .from(MEMORY_MEDIA_BUCKET)
-    .upload(filePath, blob, {
+    .upload(filePath, bytes, {
       contentType: mimeType,
       upsert: false,
     });
