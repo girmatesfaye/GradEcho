@@ -12,7 +12,9 @@ export type Memory = {
   title?: string;
   reflection?: string;
   hasVoice?: boolean;
+  voiceUrl?: string;
   voiceLabel?: string;
   voiceDuration?: string;
+  likedByMe?: boolean;
   createdAt?: string;
 };

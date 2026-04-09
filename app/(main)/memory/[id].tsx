@@ -121,7 +121,9 @@ export default function MemoryDetailScreen() {
                 />
               </View>
               <View>
-                <Text className="font-headline font-bold text-primary">{memory.authorName}</Text>
+                <Text className="font-headline font-bold text-primary">
+                  {memory.authorName}
+                </Text>
                 <Text className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant">
                   {memory.authorMeta}
                 </Text>
@@ -163,11 +165,18 @@ export default function MemoryDetailScreen() {
                     <View className="h-full w-[33%] rounded-full bg-primary-container" />
                   </View>
                 </View>
+                <View className="items-center gap-1 pl-2">
+                  <View className="h-12 w-12 items-center justify-center rounded-full bg-surface-container-low">
+                    <Ionicons name="heart" size={24} color="#ffb4ab" />
+                  </View>
+                  <Text className="font-label text-[10px] font-bold uppercase tracking-tighter text-on-surface-variant">
+                    {memory.likesCount ?? "0"}
+                  </Text>
+                </View>
               </View>
             </View>
-          ) : null}
-          <View className="flex-row items-center justify-between">
-            <View className="flex-row gap-6">
+          ) : (
+            <View className="flex-row items-center justify-end">
               <View className="items-center gap-1">
                 <View className="h-14 w-14 items-center justify-center rounded-full bg-surface-container-low">
                   <Ionicons name="heart" size={26} color="#ffb4ab" />
@@ -176,16 +185,8 @@ export default function MemoryDetailScreen() {
                   {memory.likesCount ?? "0"} Likes
                 </Text>
               </View>
-              <View className="items-center gap-1">
-                <View className="h-14 w-14 items-center justify-center rounded-full bg-surface-container-low">
-                  <Ionicons name="chatbubble-outline" size={24} color="#fff6df" />
-                </View>
-                <Text className="font-label text-[11px] font-bold uppercase tracking-tighter text-on-surface-variant">
-                  48 Comments
-                </Text>
-              </View>
             </View>
-          </View>
+          )}
         </View>
       </ScrollView>
     </View>

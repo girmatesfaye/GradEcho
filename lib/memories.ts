@@ -30,6 +30,12 @@ type SupabaseMemoryRow = {
     | null;
 };
 
+type LikeRow = {
+  id: string;
+  memory_id: string;
+  user_id: string;
+};
+
 const MEMORY_SELECT = `
   id,
   user_id,
@@ -51,11 +57,58 @@ const MEMORY_SELECT = `
   )
 `;
 
-function buildMemoryFromRow(row: SupabaseMemoryRow): Memory {
+function formatLikeCount(value: number) {
+  return value.toLocaleString();
+}
+
+function fallbackLikeCount(row: SupabaseMemoryRow) {
+  return typeof row.likes_count === "number" ? row.likes_count : 0;
+}
+
+async function fetchLikeState(memoryIds: string[]) {
+  const likeCounts = new Map<string, number>();
+  const likedMemoryIds = new Set<string>();
+
+  if (memoryIds.length === 0) {
+    return { likeCounts, likedMemoryIds };
+  }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const currentUserId = user?.id ?? null;
+
+  const { data, error } = await supabase
+    .from("likes")
+    .select("memory_id,user_id")
+    .in("memory_id", memoryIds);
+
+  if (error || !data) {
+    return { likeCounts, likedMemoryIds };
+  }
+
+  for (const row of data as Array<Pick<LikeRow, "memory_id" | "user_id">>) {
+    likeCounts.set(row.memory_id, (likeCounts.get(row.memory_id) ?? 0) + 1);
+    if (currentUserId && row.user_id === currentUserId) {
+      likedMemoryIds.add(row.memory_id);
+    }
+  }
+
+  return { likeCounts, likedMemoryIds };
+}
+
+function buildMemoryFromRow(
+  row: SupabaseMemoryRow,
+  options?: {
+    likesCount?: number;
+    likedByMe?: boolean;
+  },
+): Memory {
   const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
   const authorName = profile?.full_name ?? "Anonymous";
   const university = profile?.university ?? "";
   const department = profile?.department ?? "";
+  const likesCountValue = options?.likesCount ?? fallbackLikeCount(row);
 
   return {
     id: row.id,
@@ -68,15 +121,14 @@ function buildMemoryFromRow(row: SupabaseMemoryRow): Memory {
       `https://api.dicebear.com/9.x/initials/png?seed=${encodeURIComponent(authorName)}`,
     quote: row.quote,
     tags: row.tags ?? [],
-    likesCount:
-      typeof row.likes_count === "number"
-        ? row.likes_count.toLocaleString()
-        : "0",
+    likesCount: formatLikeCount(likesCountValue),
     title: row.title ?? undefined,
     reflection: row.reflection ?? undefined,
     hasVoice: Boolean(row.voice_url),
+    voiceUrl: row.voice_url ?? undefined,
     voiceLabel: row.voice_label ?? undefined,
     voiceDuration: row.voice_duration ?? undefined,
+    likedByMe: options?.likedByMe ?? false,
     createdAt: row.created_at,
   };
 }
@@ -91,7 +143,15 @@ export async function fetchMemories(): Promise<Memory[]> {
     throw new Error(error.message || "Could not load memories from Supabase.");
   }
 
-  return ((data ?? []) as unknown as SupabaseMemoryRow[]).map(buildMemoryFromRow);
+  const rows = (data ?? []) as unknown as SupabaseMemoryRow[];
+  const { likeCounts, likedMemoryIds } = await fetchLikeState(rows.map((row) => row.id));
+
+  return rows.map((row) =>
+    buildMemoryFromRow(row, {
+      likesCount: likeCounts.get(row.id),
+      likedByMe: likedMemoryIds.has(row.id),
+    }),
+  );
 }
 
 export async function fetchMemoriesByUserId(userId: string): Promise<Memory[]> {
@@ -107,7 +167,15 @@ export async function fetchMemoriesByUserId(userId: string): Promise<Memory[]> {
     );
   }
 
-  return ((data ?? []) as unknown as SupabaseMemoryRow[]).map(buildMemoryFromRow);
+  const rows = (data ?? []) as unknown as SupabaseMemoryRow[];
+  const { likeCounts, likedMemoryIds } = await fetchLikeState(rows.map((row) => row.id));
+
+  return rows.map((row) =>
+    buildMemoryFromRow(row, {
+      likesCount: likeCounts.get(row.id),
+      likedByMe: likedMemoryIds.has(row.id),
+    }),
+  );
 }
 
 export async function fetchMemoryById(id: string): Promise<Memory | undefined> {
@@ -129,5 +197,80 @@ export async function fetchMemoryById(id: string): Promise<Memory | undefined> {
     return undefined;
   }
 
-  return buildMemoryFromRow(data as unknown as SupabaseMemoryRow);
+  const row = data as unknown as SupabaseMemoryRow;
+  const { likeCounts, likedMemoryIds } = await fetchLikeState([row.id]);
+
+  return buildMemoryFromRow(row, {
+    likesCount: likeCounts.get(row.id),
+    likedByMe: likedMemoryIds.has(row.id),
+  });
+}
+
+async function requireSignedInUserId() {
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
+  if (error || !user) {
+    throw new Error("Please sign in to like memories.");
+  }
+
+  return user.id;
+}
+
+export async function toggleMemoryLike(
+  memoryId: string,
+): Promise<{ liked: boolean; likesCount: string }> {
+  const userId = await requireSignedInUserId();
+
+  const { data: existingLike, error: existingLikeError } = await supabase
+    .from("likes")
+    .select("id,memory_id,user_id")
+    .eq("memory_id", memoryId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (existingLikeError && existingLikeError.code !== "PGRST116") {
+    throw new Error(existingLikeError.message || "Could not read like state.");
+  }
+
+  let liked = false;
+
+  if (existingLike) {
+    const { error: unlikeError } = await supabase
+      .from("likes")
+      .delete()
+      .eq("id", existingLike.id);
+
+    if (unlikeError) {
+      throw new Error(unlikeError.message || "Could not remove like.");
+    }
+
+    liked = false;
+  } else {
+    const { error: likeError } = await supabase
+      .from("likes")
+      .insert({ memory_id: memoryId, user_id: userId });
+
+    if (likeError) {
+      throw new Error(likeError.message || "Could not save like.");
+    }
+
+    liked = true;
+  }
+
+  const { count, error: countError } = await supabase
+    .from("likes")
+    .select("id", { head: true, count: "exact" })
+    .eq("memory_id", memoryId);
+
+  if (countError) {
+    throw new Error(countError.message || "Could not refresh likes count.");
+  }
+
+  return {
+    liked,
+    likesCount: formatLikeCount(count ?? 0),
+  };
 }
