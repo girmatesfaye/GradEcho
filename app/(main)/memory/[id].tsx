@@ -1,14 +1,24 @@
-import { Audio } from "expo-av";
 import { Ionicons } from "@expo/vector-icons";
+import { Audio } from "expo-av";
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { Alert, Pressable, ScrollView, Text, View } from "react-native";
+import {
+  Alert,
+  Animated,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
+import { MainTabBar } from "@/components/main-tab-bar";
 import { SecondaryButton } from "@/components/secondary-button";
 import { TagChip } from "@/components/tag-chip";
 import { fetchMemoryById, toggleMemoryLike } from "@/lib/memories";
 import type { Memory } from "@/types/memory";
+
+const HERO_HEIGHT = 520;
 
 export default function MemoryDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -20,6 +30,7 @@ export default function MemoryDetailScreen() {
   const [playBusy, setPlayBusy] = useState(false);
   const [coverLoadFailed, setCoverLoadFailed] = useState(false);
   const soundRef = useRef<Audio.Sound | null>(null);
+  const scrollY = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     let isMounted = true;
@@ -33,9 +44,13 @@ export default function MemoryDetailScreen() {
       setLoading(true);
       setLoadError(null);
 
-      let nextMemory: Memory | undefined;
       try {
-        nextMemory = await fetchMemoryById(id);
+        const nextMemory = await fetchMemoryById(id);
+        if (!isMounted) {
+          return;
+        }
+
+        setMemory(nextMemory);
       } catch (error) {
         if (!isMounted) {
           return;
@@ -47,19 +62,14 @@ export default function MemoryDetailScreen() {
             : "Could not load this memory from Supabase.";
         setLoadError(message);
         setMemory(undefined);
-        setLoading(false);
-        return;
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
       }
-
-      if (!isMounted) {
-        return;
-      }
-
-      setMemory(nextMemory);
-      setLoading(false);
     };
 
-    loadMemory();
+    void loadMemory();
 
     return () => {
       isMounted = false;
@@ -178,8 +188,19 @@ export default function MemoryDetailScreen() {
   }
 
   const title = memory.title ?? "The moment we finally made it.";
-  const reflection = memory.reflection ?? `"${memory.quote}"`;
+  const narrative = memory.quote.trim();
+  const endWords = memory.reflection?.trim() || null;
   const showCoverFallback = !memory.imageUri || coverLoadFailed;
+  const imageTranslateY = scrollY.interpolate({
+    inputRange: [-HERO_HEIGHT, 0, HERO_HEIGHT],
+    outputRange: [-HERO_HEIGHT * 0.3, 0, -HERO_HEIGHT * 0.2],
+    extrapolate: "clamp",
+  });
+  const imageScale = scrollY.interpolate({
+    inputRange: [-HERO_HEIGHT, 0],
+    outputRange: [1.45, 1],
+    extrapolate: "clamp",
+  });
 
   return (
     <View className="flex-1 bg-surface">
@@ -192,65 +213,97 @@ export default function MemoryDetailScreen() {
           <Ionicons name="arrow-back" size={24} color="#fff6df" />
         </Pressable>
       </View>
-      <ScrollView
+
+      <Animated.ScrollView
         className="flex-1"
-        contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
+        bounces
+        scrollEventThrottle={16}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true },
+        )}
       >
-        <View className="relative" style={{ minHeight: 420 }}>
-          {showCoverFallback ? (
-            <View className="h-[480px] w-full items-center justify-center bg-surface-container-high">
-              <Ionicons name="image-outline" size={56} color="#d0c6ab" />
-              <Text className="mt-2 font-label text-[10px] uppercase tracking-widest text-on-surface-variant">
-                No Cover Image
+        <View
+          style={{ height: HERO_HEIGHT }}
+          className="relative overflow-hidden"
+        >
+          <Animated.View
+            style={[
+              StyleSheet.absoluteFillObject,
+              {
+                transform: [
+                  { translateY: imageTranslateY },
+                  { scale: imageScale },
+                ],
+              },
+            ]}
+          >
+            {showCoverFallback ? (
+              <View className="h-full w-full items-center justify-center bg-surface-container-high">
+                <Ionicons name="image-outline" size={56} color="#d0c6ab" />
+                <Text className="mt-2 font-label text-[10px] uppercase tracking-widest text-on-surface-variant">
+                  No Cover Image
+                </Text>
+              </View>
+            ) : (
+              <Image
+                source={{ uri: memory.imageUri }}
+                className="h-full w-full"
+                contentFit="cover"
+                onError={() => setCoverLoadFailed(true)}
+              />
+            )}
+          </Animated.View>
+          <View className="absolute inset-0 bg-black/20" />
+          <View className="absolute bottom-0 left-0 right-0 h-40 bg-black/30" />
+        </View>
+
+        <View className="-mt-10 rounded-t-[32px] bg-surface px-8 pb-36 pt-7">
+          <View className="mb-8 flex-row items-center gap-4">
+            <View className="h-16 w-16 overflow-hidden rounded-full border-[3px] border-primary-container bg-surface-container-highest">
+              <Image
+                source={{ uri: memory.avatarUri }}
+                className="h-full w-full"
+                contentFit="cover"
+              />
+            </View>
+            <View className="flex-1">
+              <Text className="font-headline text-2xl font-bold leading-tight text-primary">
+                {memory.authorName}
+              </Text>
+              <Text className="mt-0.5 font-label text-[10px] uppercase tracking-[1.4px] text-on-surface-variant">
+                {memory.authorMeta} - {memory.university}
               </Text>
             </View>
-          ) : (
-            <Image
-              source={{ uri: memory.imageUri }}
-              className="h-[480px] w-full"
-              contentFit="cover"
-              onError={() => setCoverLoadFailed(true)}
-            />
-          )}
-          <View className="absolute inset-0 bg-black/35" />
-          <View className="absolute bottom-8 left-0 right-0 px-8">
-            <View className="mb-4 flex-row items-center gap-3">
-              <View className="h-12 w-12 overflow-hidden rounded-full border-2 border-primary-container">
-                <Image
-                  source={{ uri: memory.avatarUri }}
-                  className="h-full w-full"
-                  contentFit="cover"
-                />
-              </View>
-              <View>
-                <Text className="font-headline font-bold text-primary">
-                  {memory.authorName}
-                </Text>
-                <Text className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant">
-                  {memory.authorMeta}
-                </Text>
-                <Text className="font-label text-[10px] uppercase tracking-widest text-primary/70">
-                  {memory.university}
-                </Text>
-              </View>
-            </View>
-            <Text className="mb-2 font-headline text-3xl font-bold leading-tight text-white">
-              {title}
-            </Text>
-            <Text className="mb-4 font-body text-lg italic leading-relaxed text-primary">
-              {reflection}
-            </Text>
-            <View className="mb-6 flex-row flex-wrap gap-2">
-              {memory.tags.map((t) => (
-                <TagChip key={t} label={t} />
-              ))}
-            </View>
           </View>
-        </View>
-        <View className="gap-8 px-8 pb-32 pt-6">
+
+          <Text className="mb-3 font-headline text-[20px] font-bold leading-[36px] text-white">
+            {title}
+          </Text>
+          {/* <Text className="mb-5 font-body text-base italic leading-7 text-primary/90">
+            {narrative}
+          </Text> */}
+
+          {endWords ? (
+            <View className="mb-7 rounded-2xl border border-outline-variant/10 bg-surface-container-high/40 p-4">
+              <Text className="mb-2 font-label text-[10px] uppercase tracking-[0.18em] text-primary/85">
+                End Words
+              </Text>
+              <Text className="font-body text-sm leading-6 text-white/90">
+                {endWords}
+              </Text>
+            </View>
+          ) : null}
+
+          <View className="mb-10 flex-row flex-wrap gap-3">
+            {memory.tags.map((tag) => (
+              <TagChip key={tag} label={tag} />
+            ))}
+          </View>
+
           {memory.hasVoice ? (
-            <View className="rounded-lg border border-outline-variant/10 bg-surface-container-high/50 p-6">
+            <View className="rounded-2xl border border-outline-variant/10 bg-surface-container-high/55 p-6">
               <View className="flex-row items-center gap-4">
                 <Pressable
                   onPress={handleToggleVoice}
@@ -268,13 +321,16 @@ export default function MemoryDetailScreen() {
                     <Text className="font-label text-[10px] font-medium uppercase tracking-wider text-on-surface-variant">
                       {memory.voiceLabel ?? "Voice memo"}
                     </Text>
-                    <Text className="font-label text-[10px] font-medium tracking-wider text-primary">
+                    <Text className="font-label text-[11px] font-bold tracking-wider text-primary">
                       {memory.voiceDuration ?? "0:00"}
                     </Text>
                   </View>
                   <View className="h-1.5 w-full overflow-hidden rounded-full bg-surface-container-highest">
                     <View className="h-full w-[33%] rounded-full bg-primary-container" />
                   </View>
+                  <Text className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant/80">
+                    Tap play to listen
+                  </Text>
                 </View>
                 <Pressable
                   onPress={handleToggleLike}
@@ -295,27 +351,33 @@ export default function MemoryDetailScreen() {
               </View>
             </View>
           ) : (
-            <View className="flex-row items-center justify-end">
-              <Pressable
-                onPress={handleToggleLike}
-                disabled={liking}
-                className="items-center gap-1"
-              >
-                <View className="h-14 w-14 items-center justify-center rounded-full bg-surface-container-low">
-                  <Ionicons
-                    name={memory.likedByMe ? "heart" : "heart-outline"}
-                    size={26}
-                    color={memory.likedByMe ? "#ff5a70" : "#ffb4ab"}
-                  />
-                </View>
-                <Text className="font-label text-[11px] font-bold uppercase tracking-tighter text-on-surface-variant">
-                  {memory.likesCount ?? "0"} Likes
-                </Text>
-              </Pressable>
+            <View className="rounded-2xl border border-outline-variant/10 bg-surface-container-high/40 p-5">
+              <Text className="mb-3 font-label text-[10px] uppercase tracking-widest text-on-surface-variant">
+                No voice memo attached
+              </Text>
+              <View className="flex-row items-center justify-end">
+                <Pressable
+                  onPress={handleToggleLike}
+                  disabled={liking}
+                  className="items-center gap-1"
+                >
+                  <View className="h-14 w-14 items-center justify-center rounded-full bg-surface-container-low">
+                    <Ionicons
+                      name={memory.likedByMe ? "heart" : "heart-outline"}
+                      size={26}
+                      color={memory.likedByMe ? "#ff5a70" : "#ffb4ab"}
+                    />
+                  </View>
+                  <Text className="font-label text-[11px] font-bold uppercase tracking-tighter text-on-surface-variant">
+                    {memory.likesCount ?? "0"} Likes
+                  </Text>
+                </Pressable>
+              </View>
             </View>
           )}
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
+      <MainTabBar />
     </View>
   );
 }

@@ -27,6 +27,8 @@ import { supabase } from "@/lib/supabase";
 
 const USER_AVATAR =
   "https://lh3.googleusercontent.com/aida-public/AB6AXuAH2kjIoZLn6ZXpKx6f3Mmfx0sclCivIJdkRXHOAUqtqL-vGa-VmQhhpyrxVhrQ4Uldi3Aw2pKNOZVmC3UX-a_59oQRx0Ue8JewbVw-Xra6t3_nvTH2505UsDjN6-xrkebk7CSCF5bjMTN4IqapIiZw6Dw_dUl_HiXSv1IVptje0t_m05CS-ivDVFxy-NWBdXlKUI5v_WCtSUpPxp8N_ozGErVcZhLwq1moW7HW4pJWkg8zPamp_BfBVESacvtXVimMbfwUs1VhdxtK";
+const NARRATIVE_CHAR_LIMIT = 260;
+const END_WORDS_CHAR_LIMIT = 600;
 
 function buildTitle(text: string) {
   const compact = text.trim().replace(/\s+/g, " ");
@@ -416,8 +418,12 @@ export default function CreateMemoryScreen() {
               onChangeText={setQuote}
               placeholder="How do you feel?"
               placeholderTextColor="#353534"
+              maxLength={NARRATIVE_CHAR_LIMIT}
               className="min-h-[120px] flex-1 font-headline text-xl text-on-surface"
             />
+            <Text className="mt-2 text-right font-label text-[10px] uppercase tracking-widest text-on-surface-variant">
+              {quote.length}/{NARRATIVE_CHAR_LIMIT}
+            </Text>
             <View className="mt-4 gap-3 rounded-2xl border border-outline-variant/10 bg-surface-container-low px-4 py-3">
               <View className="flex-row items-center justify-between">
                 <View className="flex-row items-center gap-3">
@@ -471,8 +477,12 @@ export default function CreateMemoryScreen() {
               onChangeText={setReflection}
               placeholder="Your final words to the class..."
               placeholderTextColor="#353534"
+              maxLength={END_WORDS_CHAR_LIMIT}
               className="min-h-[80px] font-headline text-xl text-on-surface"
             />
+            <Text className="mt-2 text-right font-label text-[10px] uppercase tracking-widest text-on-surface-variant">
+              {reflection.length}/{END_WORDS_CHAR_LIMIT}
+            </Text>
           </View>
 
           <View className="mb-8 flex-row items-center gap-4 rounded-lg border border-outline-variant/10 bg-surface-container-high/40 p-6">

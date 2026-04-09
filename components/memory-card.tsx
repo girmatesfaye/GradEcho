@@ -4,9 +4,8 @@ import { Image } from "expo-image";
 import { useEffect, useRef, useState } from "react";
 import { GestureResponderEvent, Pressable, Text, View } from "react-native";
 
-import type { Memory } from "@/types/memory";
-
 import { TagChip } from "@/components/tag-chip";
+import type { Memory } from "@/types/memory";
 
 type Props = {
   memory: Memory;
@@ -25,7 +24,7 @@ function truncateText(text: string, limit: number) {
     return compact;
   }
 
-  return `${compact.slice(0, Math.max(0, limit - 1)).trimEnd()}…`;
+  return `${compact.slice(0, Math.max(0, limit - 3)).trimEnd()}...`;
 }
 
 export function MemoryCard({
@@ -121,7 +120,10 @@ export function MemoryCard({
   const narrativeSource = memory.title?.trim() || memory.quote;
   const endWordsSource = memory.reflection?.trim() || memory.quote;
   const narrativePreview = truncateText(narrativeSource, 56);
-  const endWordsPreview = truncateText(endWordsSource, variant === "feed" ? 140 : 110);
+  const endWordsPreview = truncateText(
+    endWordsSource,
+    variant === "feed" ? 120 : 95,
+  );
 
   return (
     <Pressable
@@ -149,6 +151,7 @@ export function MemoryCard({
           </Text>
         </View>
       </View>
+
       <View
         className={`relative overflow-hidden bg-surface-container-lowest ${
           variant === "profile" ? "rounded-2xl" : "rounded-lg"
@@ -169,6 +172,7 @@ export function MemoryCard({
             />
           </Pressable>
         ) : null}
+
         {showImageFallback ? (
           <View className="h-full w-full items-center justify-center bg-surface-container-high">
             <Ionicons name="image-outline" size={44} color="#d0c6ab" />
@@ -184,46 +188,53 @@ export function MemoryCard({
             onError={() => setImageLoadFailed(true)}
           />
         )}
+
         <View className="absolute inset-0 bg-black/55" />
         <View className="absolute bottom-0 left-0 right-0 p-6">
-          <Text className="mb-2 font-headline text-2xl font-bold leading-tight text-primary">
+          <Text className="mb-2 font-headline text-xl font-bold leading-tight text-primary">
             {narrativePreview}
           </Text>
-          <Text className="mb-6 font-body text-base italic leading-relaxed text-primary">
+          <Text className="mb-6 font-body text-sm italic leading-relaxed text-primary">
             {endWordsPreview}
           </Text>
+
           <View className="mb-6 flex-row flex-wrap gap-2">
-            {memory.tags.map((t) => (
-              <TagChip key={t} label={t} />
+            {memory.tags.map((tag) => (
+              <TagChip key={tag} label={tag} />
             ))}
           </View>
+
           <View className="flex-row items-center justify-between">
-            <Pressable
-              onPress={handleToggleVoice}
-              disabled={!memory.voiceUrl || playBusy}
-              className={`flex-row items-center gap-2 rounded-full border px-4 py-2 ${
-                memory.voiceUrl
-                  ? "border-primary-container/20 bg-primary-container/10"
-                  : "border-outline-variant/20 bg-surface-container-low/40"
-              }`}
-            >
-              <Ionicons
-                name={isPlayingVoice ? "pause-circle" : "play-circle"}
-                size={22}
-                color={memory.voiceUrl ? "#ffd700" : "#9b9178"}
-              />
-              <Text className="font-label text-xs font-bold uppercase tracking-widest text-primary-container">
-                {!memory.voiceUrl
-                  ? "No Voice"
-                  : variant === "profile"
-                    ? isPlayingVoice
-                      ? "Pause"
-                      : "Listen"
+            <View className="flex-row items-center gap-2">
+              <Pressable
+                onPress={handleToggleVoice}
+                disabled={!memory.voiceUrl || playBusy}
+                className={`flex-row items-center gap-2 rounded-full border px-4 py-2 ${
+                  memory.voiceUrl
+                    ? "border-primary-container/20 bg-primary-container/10"
+                    : "border-outline-variant/20 bg-surface-container-low/40"
+                }`}
+              >
+                <Ionicons
+                  name={isPlayingVoice ? "pause-circle" : "play-circle"}
+                  size={22}
+                  color={memory.voiceUrl ? "#ffd700" : "#9b9178"}
+                />
+                <Text className="font-label text-xs font-bold uppercase tracking-widest text-primary-container">
+                  {!memory.voiceUrl
+                    ? "No Voice"
                     : isPlayingVoice
-                      ? "Pause Memory"
-                      : "Listen to Memory"}
-              </Text>
-            </Pressable>
+                      ? "Pause"
+                      : "Play"}
+                </Text>
+              </Pressable>
+              {memory.voiceUrl ? (
+                <Text className="font-label text-[10px] font-bold uppercase tracking-widest text-white/80">
+                  {memory.voiceDuration ?? "00:00"}
+                </Text>
+              ) : null}
+            </View>
+
             <View className="flex-row items-center gap-3">
               {memory.dateLabel ? (
                 <Text className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant opacity-60">
