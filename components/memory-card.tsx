@@ -1,8 +1,14 @@
-import { Audio } from "expo-av";
 import { Ionicons } from "@expo/vector-icons";
+import { Audio } from "expo-av";
 import { Image } from "expo-image";
 import { useEffect, useRef, useState } from "react";
-import { GestureResponderEvent, Pressable, Text, View } from "react-native";
+import {
+  GestureResponderEvent,
+  Image as NativeImage,
+  Pressable,
+  Text,
+  View,
+} from "react-native";
 
 import { TagChip } from "@/components/tag-chip";
 import type { Memory } from "@/types/memory";
@@ -181,11 +187,20 @@ export function MemoryCard({
             </Text>
           </View>
         ) : (
-          <Image
+          <NativeImage
             source={{ uri: memory.imageUri }}
             className="h-full w-full"
-            contentFit="cover"
-            onError={() => setImageLoadFailed(true)}
+            resizeMode="cover"
+            onError={(event) => {
+              console.warn("[memory-card] cover failed", {
+                memoryId: memory.id,
+                imageUri: memory.imageUri,
+                error:
+                  (event as { nativeEvent?: { error?: string } })?.nativeEvent
+                    ?.error ?? (event as { error?: string })?.error,
+              });
+              setImageLoadFailed(true);
+            }}
           />
         )}
 

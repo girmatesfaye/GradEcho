@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Animated,
+  Image as NativeImage,
   Pressable,
   StyleSheet,
   Text,
@@ -247,11 +248,21 @@ export default function MemoryDetailScreen() {
                 </Text>
               </View>
             ) : (
-              <Image
+              <NativeImage
                 source={{ uri: memory.imageUri }}
                 className="h-full w-full"
-                contentFit="cover"
-                onError={() => setCoverLoadFailed(true)}
+                resizeMode="cover"
+                onError={(event) => {
+                  console.warn("[memory-detail] cover failed", {
+                    memoryId: memory.id,
+                    imageUri: memory.imageUri,
+                    error:
+                      (event as { nativeEvent?: { error?: string } })
+                        ?.nativeEvent?.error ??
+                      (event as { error?: string })?.error,
+                  });
+                  setCoverLoadFailed(true);
+                }}
               />
             )}
           </Animated.View>

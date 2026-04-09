@@ -2,7 +2,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { Audio } from "expo-av";
 import * as FileSystem from "expo-file-system/legacy";
 import { Image } from "expo-image";
-import * as ImageManipulator from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
@@ -10,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
+  Image as NativeImage,
   Platform,
   Pressable,
   ScrollView,
@@ -30,6 +30,7 @@ const USER_AVATAR =
   "https://lh3.googleusercontent.com/aida-public/AB6AXuAH2kjIoZLn6ZXpKx6f3Mmfx0sclCivIJdkRXHOAUqtqL-vGa-VmQhhpyrxVhrQ4Uldi3Aw2pKNOZVmC3UX-a_59oQRx0Ue8JewbVw-Xra6t3_nvTH2505UsDjN6-xrkebk7CSCF5bjMTN4IqapIiZw6Dw_dUl_HiXSv1IVptje0t_m05CS-ivDVFxy-NWBdXlKUI5v_WCtSUpPxp8N_ozGErVcZhLwq1moW7HW4pJWkg8zPamp_BfBVESacvtXVimMbfwUs1VhdxtK";
 const NARRATIVE_CHAR_LIMIT = 260;
 const END_WORDS_CHAR_LIMIT = 600;
+const DEBUG_MAX_EVENTS = 18;
 
 function buildTitle(text: string) {
   const compact = text.trim().replace(/\s+/g, " ");
@@ -58,41 +59,21 @@ function formatDuration(ms: number) {
   return `${minutes}:${seconds}`;
 }
 
-async function normalizeAssetUri(uri: string, extensionFallback: string) {
-  const safeExtension =
-    uri.split(".").pop()?.split("?")[0]?.split("#")[0] || extensionFallback;
-  const cacheDirectory = FileSystem.cacheDirectory;
-  if (!cacheDirectory) {
-    return uri;
+function stringifyDebug(value: unknown) {
+  if (typeof value === "string") {
+    return value;
   }
 
-  const destination = `${cacheDirectory}gradecho-${Date.now()}.${safeExtension}`;
-
-  await FileSystem.copyAsync({
-    from: uri,
-    to: destination,
-  });
-
-  return destination;
-}
-
-async function normalizeCoverImageUri(uri: string) {
   try {
-    const result = await ImageManipulator.manipulateAsync(uri, [], {
-      compress: 0.9,
-      format: ImageManipulator.SaveFormat.JPEG,
-    });
-
-    return result.uri;
+    return JSON.stringify(value);
   } catch {
-    return normalizeAssetUri(uri, "jpg");
+    return String(value);
   }
 }
 
 export default function CreateMemoryScreen() {
   const insets = useSafeAreaInsets();
   const [coverUri, setCoverUri] = useState<string | null>(null);
-  const [coverExtension, setCoverExtension] = useState<string>("jpg");
   const [coverLoadFailed, setCoverLoadFailed] = useState(false);
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const recordingRef = useRef<Audio.Recording | null>(null);
@@ -105,6 +86,18 @@ export default function CreateMemoryScreen() {
   const [reflection, setReflection] = useState("");
   const [tagsText, setTagsText] = useState("#graduation #memories");
   const [loading, setLoading] = useState(false);
+  const [showDebugPanel, setShowDebugPanel] = useState(true);
+  const [debugEvents, setDebugEvents] = useState<string[]>([]);
+
+  const pushDebug = (event: string, payload?: unknown) => {
+    const stamp = new Date().toISOString().slice(11, 19);
+    const line = payload
+      ? `${stamp} ${event} | ${stringifyDebug(payload)}`
+      : `${stamp} ${event}`;
+
+    console.log("[create-memory][debug]", line);
+    setDebugEvents((prev) => [line, ...prev].slice(0, DEBUG_MAX_EVENTS));
+  };
 
   useEffect(() => {
     setCoverLoadFailed(false);
@@ -126,7 +119,10 @@ export default function CreateMemoryScreen() {
 
   const pickCoverImage = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    pushDebug("picker:permission", permission);
+
     if (!permission.granted) {
+      pushDebug("picker:denied");
       Alert.alert(
         "Permission required",
         "Please allow photo library access to choose a cover image.",
@@ -136,44 +132,61 @@ export default function CreateMemoryScreen() {
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 5],
+      allowsEditing: false,
       quality: 0.9,
       base64: false,
       preferredAssetRepresentationMode:
-        ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Automatic,
+        ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
+    });
+
+    pushDebug("picker:result", {
+      canceled: result.canceled,
+      assetsCount: result.canceled ? 0 : result.assets.length,
     });
 
     if (!result.canceled) {
-      const picked = result.assets[0]?.uri;
+      const asset = result.assets[0];
+      const picked = asset?.uri;
+
+      pushDebug("picker:asset", {
+        uri: picked,
+        width: asset?.width,
+        height: asset?.height,
+        fileSize: asset?.fileSize,
+        mimeType: asset?.mimeType,
+      });
 
       if (!picked) {
+        pushDebug("picker:missing-uri");
         setCoverUri(null);
         return;
       }
 
-      setCoverExtension("jpg");
-
-      try {
-        const normalized = await normalizeCoverImageUri(picked);
-        setCoverUri(normalized);
-      } catch {
-        // Fallback to the original URI when copy fails.
-        setCoverUri(picked);
-      }
+      console.log("[create-memory] picked cover image", { picked });
+      pushDebug("picker:selected", { coverUri: picked });
+      setCoverLoadFailed(false);
+      setCoverUri(picked);
     }
   };
 
   const handleShareMemory = async () => {
     if (!coverUri) {
+      pushDebug("share:blocked-missing-image");
       Alert.alert("Missing image", "Please choose a cover image first.");
       return;
     }
 
     if (!quote.trim()) {
+      pushDebug("share:blocked-missing-text");
       Alert.alert("Missing text", "Please add your memory narration.");
       return;
     }
+
+    pushDebug("share:start", {
+      coverUri,
+      quoteLength: quote.trim().length,
+      hasVoice: Boolean(voiceUri),
+    });
 
     setLoading(true);
 
@@ -183,6 +196,10 @@ export default function CreateMemoryScreen() {
     } = await supabase.auth.getUser();
 
     if (userError || !user) {
+      pushDebug("share:user-error", {
+        userError: userError?.message,
+        hasUser: Boolean(user),
+      });
       setLoading(false);
       Alert.alert("Not signed in", "Please sign in again to share a memory.");
       router.replace("/login");
@@ -193,8 +210,8 @@ export default function CreateMemoryScreen() {
       const imageUrl = await uploadMemoryImage({
         userId: user.id,
         uri: coverUri,
-        extension: coverExtension,
       });
+      pushDebug("share:image-uploaded", { imageUrl });
 
       let voiceUrl: string | null = null;
       if (voiceUri) {
@@ -204,6 +221,7 @@ export default function CreateMemoryScreen() {
           base64: voiceBase64 ?? undefined,
           extension: voiceExtension,
         });
+        pushDebug("share:audio-uploaded", { voiceUrl });
       }
 
       const payload = {
@@ -225,15 +243,20 @@ export default function CreateMemoryScreen() {
         .single();
 
       if (error) {
+        pushDebug("share:db-insert-error", error.message);
         throw error;
       }
+
+      pushDebug("share:success", { memoryId: data.id });
 
       router.replace({ pathname: "/memory/[id]", params: { id: data.id } });
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Could not save memory.";
+      pushDebug("share:error", message);
       Alert.alert("Upload failed", `Create-memory failed: ${message}`);
     } finally {
+      pushDebug("share:finish", { loading: false });
       setLoading(false);
     }
   };
@@ -295,23 +318,10 @@ export default function CreateMemoryScreen() {
       await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
 
       if (uri) {
-        let normalizedVoiceUri = uri;
-        let extension =
+        const normalizedVoiceUri = uri;
+        const extension =
           uri.split(".").pop()?.split("?")[0]?.split("#")[0]?.toLowerCase() ??
           "m4a";
-
-        try {
-          normalizedVoiceUri = await normalizeAssetUri(uri, "m4a");
-          extension =
-            normalizedVoiceUri
-              .split(".")
-              .pop()
-              ?.split("?")[0]
-              ?.split("#")[0]
-              ?.toLowerCase() ?? "m4a";
-        } catch {
-          // Keep original URI if cache copy fails.
-        }
 
         let encodedVoice: string | null = null;
         try {
@@ -357,7 +367,7 @@ export default function CreateMemoryScreen() {
               <Ionicons name="close" size={28} color="#ffd700" />
             </Pressable>
             <Text className="font-headline text-xl font-black tracking-tighter text-primary-container">
-              GradEcho
+              GC Magazine
             </Text>
           </View>
           <View className="h-10 w-10 overflow-hidden rounded-full border border-outline-variant/20">
@@ -390,11 +400,26 @@ export default function CreateMemoryScreen() {
             <View className="aspect-[16/10] w-full items-center justify-center">
               {coverUri && !coverLoadFailed ? (
                 <>
-                  <Image
+                  <NativeImage
+                    key={coverUri}
                     source={{ uri: coverUri }}
                     className="absolute inset-0 h-full w-full"
-                    contentFit="cover"
-                    onError={() => setCoverLoadFailed(true)}
+                    resizeMode="cover"
+                    onError={(event) => {
+                      const imageError =
+                        (event as { nativeEvent?: { error?: string } })
+                          ?.nativeEvent?.error ??
+                        (event as { error?: string })?.error;
+                      pushDebug("preview:error", {
+                        coverUri,
+                        error: imageError ?? "unknown",
+                      });
+                      console.warn("[create-memory] cover preview failed", {
+                        coverUri,
+                        error: imageError ?? "unknown",
+                      });
+                      setCoverLoadFailed(true);
+                    }}
                   />
                   <View className="absolute inset-0 bg-black/10" />
                 </>
@@ -419,6 +444,60 @@ export default function CreateMemoryScreen() {
               )}
             </View>
           </Pressable>
+
+          <View className="mb-8 rounded-lg border border-outline-variant/20 bg-surface-container-low p-4">
+            <View className="mb-3 flex-row items-center justify-between">
+              <Text className="font-label text-[10px] uppercase tracking-[0.16em] text-on-surface-variant">
+                Debug Trace
+              </Text>
+              <View className="flex-row items-center gap-2">
+                <Pressable
+                  onPress={() => setShowDebugPanel((value) => !value)}
+                  className="rounded-full border border-outline-variant/20 px-3 py-1"
+                >
+                  <Text className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant">
+                    {showDebugPanel ? "Hide" : "Show"}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setDebugEvents([])}
+                  className="rounded-full border border-outline-variant/20 px-3 py-1"
+                >
+                  <Text className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant">
+                    Clear
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+
+            {showDebugPanel ? (
+              <View className="gap-1">
+                <Text className="font-label text-[10px] text-on-surface-variant">
+                  platform: {Platform.OS}
+                </Text>
+                <Text className="font-label text-[10px] text-on-surface-variant">
+                  coverUri: {coverUri ?? "null"}
+                </Text>
+                <Text className="font-label text-[10px] text-on-surface-variant">
+                  coverLoadFailed: {String(coverLoadFailed)}
+                </Text>
+                {debugEvents.length === 0 ? (
+                  <Text className="font-label text-[10px] text-on-surface-variant">
+                    No events yet.
+                  </Text>
+                ) : (
+                  debugEvents.map((eventLine, index) => (
+                    <Text
+                      key={`${eventLine}-${index}`}
+                      className="font-label text-[10px] text-on-surface-variant"
+                    >
+                      {eventLine}
+                    </Text>
+                  ))
+                )}
+              </View>
+            ) : null}
+          </View>
 
           <View className="mb-8 rounded-lg border border-outline-variant/10 bg-surface-container-high/40 p-6">
             <Text className="mb-4 font-label text-[10px] uppercase tracking-[0.2em] text-on-surface-variant">
