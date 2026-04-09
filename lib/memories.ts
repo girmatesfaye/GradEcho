@@ -36,6 +36,9 @@ type LikeRow = {
   user_id: string;
 };
 
+const MEMORY_MEDIA_BUCKET = "memory-media";
+const SIGNED_URL_TTL_SECONDS = 60 * 60 * 24 * 7;
+
 const MEMORY_SELECT = `
   id,
   user_id,
@@ -63,6 +66,76 @@ function formatLikeCount(value: number) {
 
 function fallbackLikeCount(row: SupabaseMemoryRow) {
   return typeof row.likes_count === "number" ? row.likes_count : 0;
+}
+
+function stripQueryAndHash(value: string) {
+  return value.split("#")[0]?.split("?")[0] ?? value;
+}
+
+function normalizeStoragePath(path: string) {
+  return stripQueryAndHash(path).replace(/^\/+/, "");
+}
+
+function extractStoragePath(value: string, bucket: string): string | null {
+  const source = value.trim();
+  if (!source) {
+    return null;
+  }
+
+  if (!/^https?:\/\//i.test(source)) {
+    return normalizeStoragePath(source);
+  }
+
+  let decoded = source;
+  try {
+    decoded = decodeURIComponent(source);
+  } catch {
+    decoded = source;
+  }
+
+  const markers = [
+    `/storage/v1/object/public/${bucket}/`,
+    `/storage/v1/object/sign/${bucket}/`,
+    `/storage/v1/object/authenticated/${bucket}/`,
+  ];
+
+  for (const marker of markers) {
+    const index = decoded.indexOf(marker);
+    if (index >= 0) {
+      const rawPath = decoded.slice(index + marker.length);
+      const normalized = normalizeStoragePath(rawPath);
+      return normalized || null;
+    }
+  }
+
+  return null;
+}
+
+async function resolveStorageAssetUrl(
+  value: string | null | undefined,
+): Promise<string | undefined> {
+  if (!value) {
+    return undefined;
+  }
+
+  const storagePath = extractStoragePath(value, MEMORY_MEDIA_BUCKET);
+  if (!storagePath) {
+    return value;
+  }
+
+  const { data: signedData, error: signedError } = await supabase.storage
+    .from(MEMORY_MEDIA_BUCKET)
+    .createSignedUrl(storagePath, SIGNED_URL_TTL_SECONDS);
+
+  if (!signedError && signedData?.signedUrl) {
+    return signedData.signedUrl;
+  }
+
+  const { data: publicData } = supabase.storage
+    .from(MEMORY_MEDIA_BUCKET)
+    .getPublicUrl(storagePath);
+
+  return publicData.publicUrl || value;
 }
 
 async function fetchLikeState(memoryIds: string[]) {
@@ -102,6 +175,8 @@ function buildMemoryFromRow(
   options?: {
     likesCount?: number;
     likedByMe?: boolean;
+    resolvedImageUrl?: string;
+    resolvedVoiceUrl?: string;
   },
 ): Memory {
   const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
@@ -115,7 +190,7 @@ function buildMemoryFromRow(
     authorName,
     authorMeta: department || "Member",
     university,
-    imageUri: row.image_url,
+    imageUri: options?.resolvedImageUrl ?? row.image_url,
     avatarUri:
       profile?.avatar_url ??
       `https://api.dicebear.com/9.x/initials/png?seed=${encodeURIComponent(authorName)}`,
@@ -125,7 +200,7 @@ function buildMemoryFromRow(
     title: row.title ?? undefined,
     reflection: row.reflection ?? undefined,
     hasVoice: Boolean(row.voice_url),
-    voiceUrl: row.voice_url ?? undefined,
+    voiceUrl: options?.resolvedVoiceUrl ?? row.voice_url ?? undefined,
     voiceLabel: row.voice_label ?? undefined,
     voiceDuration: row.voice_duration ?? undefined,
     likedByMe: options?.likedByMe ?? false,
@@ -145,11 +220,21 @@ export async function fetchMemories(): Promise<Memory[]> {
 
   const rows = (data ?? []) as unknown as SupabaseMemoryRow[];
   const { likeCounts, likedMemoryIds } = await fetchLikeState(rows.map((row) => row.id));
+  const resolvedAssets = await Promise.all(
+    rows.map(async (row) => ({
+      id: row.id,
+      imageUrl: await resolveStorageAssetUrl(row.image_url),
+      voiceUrl: await resolveStorageAssetUrl(row.voice_url),
+    })),
+  );
+  const resolvedAssetById = new Map(resolvedAssets.map((asset) => [asset.id, asset]));
 
   return rows.map((row) =>
     buildMemoryFromRow(row, {
       likesCount: likeCounts.get(row.id),
       likedByMe: likedMemoryIds.has(row.id),
+      resolvedImageUrl: resolvedAssetById.get(row.id)?.imageUrl,
+      resolvedVoiceUrl: resolvedAssetById.get(row.id)?.voiceUrl,
     }),
   );
 }
@@ -169,11 +254,21 @@ export async function fetchMemoriesByUserId(userId: string): Promise<Memory[]> {
 
   const rows = (data ?? []) as unknown as SupabaseMemoryRow[];
   const { likeCounts, likedMemoryIds } = await fetchLikeState(rows.map((row) => row.id));
+  const resolvedAssets = await Promise.all(
+    rows.map(async (row) => ({
+      id: row.id,
+      imageUrl: await resolveStorageAssetUrl(row.image_url),
+      voiceUrl: await resolveStorageAssetUrl(row.voice_url),
+    })),
+  );
+  const resolvedAssetById = new Map(resolvedAssets.map((asset) => [asset.id, asset]));
 
   return rows.map((row) =>
     buildMemoryFromRow(row, {
       likesCount: likeCounts.get(row.id),
       likedByMe: likedMemoryIds.has(row.id),
+      resolvedImageUrl: resolvedAssetById.get(row.id)?.imageUrl,
+      resolvedVoiceUrl: resolvedAssetById.get(row.id)?.voiceUrl,
     }),
   );
 }
@@ -199,10 +294,16 @@ export async function fetchMemoryById(id: string): Promise<Memory | undefined> {
 
   const row = data as unknown as SupabaseMemoryRow;
   const { likeCounts, likedMemoryIds } = await fetchLikeState([row.id]);
+  const [resolvedImageUrl, resolvedVoiceUrl] = await Promise.all([
+    resolveStorageAssetUrl(row.image_url),
+    resolveStorageAssetUrl(row.voice_url),
+  ]);
 
   return buildMemoryFromRow(row, {
     likesCount: likeCounts.get(row.id),
     likedByMe: likedMemoryIds.has(row.id),
+    resolvedImageUrl,
+    resolvedVoiceUrl,
   });
 }
 

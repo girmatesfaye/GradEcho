@@ -1,10 +1,17 @@
-import { router } from "expo-router";
-import { useEffect, useState } from "react";
-import { Alert, Pressable, ScrollView, Text, View } from "react-native";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useState } from "react";
+import {
+  Alert,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
 
 import { FeedHeader } from "@/components/feed-header";
 import { MemoryCard } from "@/components/memory-card";
-import { fetchMemories } from "@/lib/memories";
+import { fetchMemories, toggleMemoryLike } from "@/lib/memories";
 import { fetchCurrentProfile } from "@/lib/profiles";
 import { supabase } from "@/lib/supabase";
 import type { Memory } from "@/types/memory";
@@ -20,63 +27,66 @@ export default function HomeFeedScreen() {
   const [avatarUri, setAvatarUri] = useState(AVATAR);
   const [memories, setMemories] = useState<Memory[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [likingId, setLikingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadMemories = async () => {
+  const loadMemories = useCallback(async (silent = false) => {
+    if (silent) {
+      setRefreshing(true);
+    } else {
       setLoading(true);
-      setDeleteError(null);
-      setLoadError(null);
+    }
+    setDeleteError(null);
+    setLoadError(null);
 
-      const [memoriesResult, profileResult] = await Promise.allSettled([
-        fetchMemories(),
-        fetchCurrentProfile(),
-      ]);
+    const [memoriesResult, profileResult] = await Promise.allSettled([
+      fetchMemories(),
+      fetchCurrentProfile(),
+    ]);
 
-      if (!isMounted) {
-        return;
-      }
+    if (memoriesResult.status === "fulfilled") {
+      setMemories(memoriesResult.value);
+    } else {
+      setMemories([]);
+      const message =
+        memoriesResult.reason instanceof Error
+          ? memoriesResult.reason.message
+          : "Could not load memories from Supabase.";
+      setLoadError(message);
+    }
 
-      if (memoriesResult.status === "fulfilled") {
-        setMemories(memoriesResult.value);
-      } else {
-        setMemories([]);
-        const message =
-          memoriesResult.reason instanceof Error
-            ? memoriesResult.reason.message
-            : "Could not load memories from Supabase.";
-        setLoadError(message);
-      }
+    if (profileResult.status === "fulfilled") {
+      const profile = profileResult.value;
+      const safeName = profile?.full_name?.trim();
+      setIsAdminUser(profile?.is_admin ?? false);
+      setAvatarUri(
+        profile?.avatar_url ??
+          (safeName
+            ? `https://api.dicebear.com/9.x/initials/png?seed=${encodeURIComponent(safeName)}`
+            : AVATAR),
+      );
+    } else {
+      setIsAdminUser(false);
+      setAvatarUri(AVATAR);
+    }
 
-      if (profileResult.status === "fulfilled") {
-        const profile = profileResult.value;
-        const safeName = profile?.full_name?.trim();
-        setIsAdminUser(profile?.is_admin ?? false);
-        setAvatarUri(
-          profile?.avatar_url ??
-            (safeName
-              ? `https://api.dicebear.com/9.x/initials/png?seed=${encodeURIComponent(safeName)}`
-              : AVATAR),
-        );
-      } else {
-        setIsAdminUser(false);
-        setAvatarUri(AVATAR);
-      }
-
-      setIsAdminMode(false);
-      setLoading(false);
-    };
-
-    loadMemories();
-
-    return () => {
-      isMounted = false;
-    };
+    setIsAdminMode(false);
+    setLoading(false);
+    setRefreshing(false);
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadMemories();
+    }, [loadMemories]),
+  );
+
+  const handleRefresh = async () => {
+    await loadMemories(true);
+  };
 
   const handleDeleteMemory = async (id: string) => {
     setDeletingId(id);
@@ -96,6 +106,31 @@ export default function HomeFeedScreen() {
     }
 
     setMemories((prev) => prev.filter((m) => m.id !== id));
+  };
+
+  const handleToggleLike = async (id: string) => {
+    setLikingId(id);
+
+    try {
+      const result = await toggleMemoryLike(id);
+      setMemories((prev) =>
+        prev.map((memory) =>
+          memory.id === id
+            ? {
+                ...memory,
+                likedByMe: result.liked,
+                likesCount: result.likesCount,
+              }
+            : memory,
+        ),
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Could not toggle like.";
+      Alert.alert("Like failed", message);
+    } finally {
+      setLikingId(null);
+    }
   };
 
   const canModerate = isAdminUser;
@@ -123,6 +158,13 @@ export default function HomeFeedScreen() {
         className="flex-1 px-4 pt-4"
         contentContainerClassName="pb-32"
         contentInsetAdjustmentBehavior="automatic"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor="#ffd700"
+          />
+        }
       >
         {loading ? (
           <View className="mb-4 rounded-xl border border-outline-variant/20 bg-surface-container-low px-4 py-3">
@@ -184,6 +226,8 @@ export default function HomeFeedScreen() {
             memory={m}
             showDelete={isAdminMode && canModerate}
             onDelete={handleDeleteMemory}
+            onToggleLike={handleToggleLike}
+            liking={likingId === m.id}
             deleting={deletingId === m.id}
             onPress={() =>
               router.push({ pathname: "/memory/[id]", params: { id: m.id } })

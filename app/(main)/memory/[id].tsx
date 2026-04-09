@@ -1,12 +1,13 @@
+import { Audio } from "expo-av";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 
 import { SecondaryButton } from "@/components/secondary-button";
 import { TagChip } from "@/components/tag-chip";
-import { fetchMemoryById } from "@/lib/memories";
+import { fetchMemoryById, toggleMemoryLike } from "@/lib/memories";
 import type { Memory } from "@/types/memory";
 
 export default function MemoryDetailScreen() {
@@ -14,6 +15,11 @@ export default function MemoryDetailScreen() {
   const [memory, setMemory] = useState<Memory | undefined>();
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [liking, setLiking] = useState(false);
+  const [isPlayingVoice, setIsPlayingVoice] = useState(false);
+  const [playBusy, setPlayBusy] = useState(false);
+  const [coverLoadFailed, setCoverLoadFailed] = useState(false);
+  const soundRef = useRef<Audio.Sound | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -60,6 +66,92 @@ export default function MemoryDetailScreen() {
     };
   }, [id]);
 
+  useEffect(() => {
+    return () => {
+      if (soundRef.current) {
+        void soundRef.current.unloadAsync().catch(() => {
+          // Ignore cleanup races.
+        });
+        soundRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    setCoverLoadFailed(false);
+  }, [memory?.imageUri]);
+
+  const handleToggleLike = async () => {
+    if (!memory || liking) {
+      return;
+    }
+
+    setLiking(true);
+    try {
+      const result = await toggleMemoryLike(memory.id);
+      setMemory((prev) =>
+        prev
+          ? {
+              ...prev,
+              likedByMe: result.liked,
+              likesCount: result.likesCount,
+            }
+          : prev,
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Could not toggle like.";
+      Alert.alert("Like failed", message);
+    } finally {
+      setLiking(false);
+    }
+  };
+
+  const handleToggleVoice = async () => {
+    if (!memory?.voiceUrl || playBusy) {
+      return;
+    }
+
+    try {
+      setPlayBusy(true);
+
+      if (soundRef.current) {
+        const status = await soundRef.current.getStatusAsync();
+        if (status.isLoaded && status.isPlaying) {
+          await soundRef.current.pauseAsync();
+          setIsPlayingVoice(false);
+        } else {
+          await soundRef.current.playAsync();
+          setIsPlayingVoice(true);
+        }
+
+        return;
+      }
+
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: memory.voiceUrl },
+        { shouldPlay: true },
+        (status) => {
+          if (!status.isLoaded) {
+            return;
+          }
+
+          setIsPlayingVoice(status.isPlaying);
+          if (status.didJustFinish) {
+            setIsPlayingVoice(false);
+          }
+        },
+      );
+
+      soundRef.current = sound;
+      setIsPlayingVoice(true);
+    } catch {
+      setIsPlayingVoice(false);
+    } finally {
+      setPlayBusy(false);
+    }
+  };
+
   if (loading) {
     return (
       <View className="flex-1 items-center justify-center bg-surface px-6">
@@ -87,6 +179,7 @@ export default function MemoryDetailScreen() {
 
   const title = memory.title ?? "The moment we finally made it.";
   const reflection = memory.reflection ?? `"${memory.quote}"`;
+  const showCoverFallback = !memory.imageUri || coverLoadFailed;
 
   return (
     <View className="flex-1 bg-surface">
@@ -105,11 +198,21 @@ export default function MemoryDetailScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View className="relative" style={{ minHeight: 420 }}>
-          <Image
-            source={{ uri: memory.imageUri }}
-            className="h-[480px] w-full"
-            contentFit="cover"
-          />
+          {showCoverFallback ? (
+            <View className="h-[480px] w-full items-center justify-center bg-surface-container-high">
+              <Ionicons name="image-outline" size={56} color="#d0c6ab" />
+              <Text className="mt-2 font-label text-[10px] uppercase tracking-widest text-on-surface-variant">
+                No Cover Image
+              </Text>
+            </View>
+          ) : (
+            <Image
+              source={{ uri: memory.imageUri }}
+              className="h-[480px] w-full"
+              contentFit="cover"
+              onError={() => setCoverLoadFailed(true)}
+            />
+          )}
           <View className="absolute inset-0 bg-black/35" />
           <View className="absolute bottom-8 left-0 right-0 px-8">
             <View className="mb-4 flex-row items-center gap-3">
@@ -149,8 +252,16 @@ export default function MemoryDetailScreen() {
           {memory.hasVoice ? (
             <View className="rounded-lg border border-outline-variant/10 bg-surface-container-high/50 p-6">
               <View className="flex-row items-center gap-4">
-                <Pressable className="h-12 w-12 items-center justify-center rounded-full bg-primary-container">
-                  <Ionicons name="play" size={28} color="#705e00" />
+                <Pressable
+                  onPress={handleToggleVoice}
+                  disabled={!memory.voiceUrl || playBusy}
+                  className="h-12 w-12 items-center justify-center rounded-full bg-primary-container"
+                >
+                  <Ionicons
+                    name={isPlayingVoice ? "pause" : "play"}
+                    size={28}
+                    color="#705e00"
+                  />
                 </Pressable>
                 <View className="flex-1 gap-2">
                   <View className="flex-row items-center justify-between">
@@ -165,26 +276,42 @@ export default function MemoryDetailScreen() {
                     <View className="h-full w-[33%] rounded-full bg-primary-container" />
                   </View>
                 </View>
-                <View className="items-center gap-1 pl-2">
+                <Pressable
+                  onPress={handleToggleLike}
+                  disabled={liking}
+                  className="items-center gap-1 pl-2"
+                >
                   <View className="h-12 w-12 items-center justify-center rounded-full bg-surface-container-low">
-                    <Ionicons name="heart" size={24} color="#ffb4ab" />
+                    <Ionicons
+                      name={memory.likedByMe ? "heart" : "heart-outline"}
+                      size={24}
+                      color={memory.likedByMe ? "#ff5a70" : "#ffb4ab"}
+                    />
                   </View>
                   <Text className="font-label text-[10px] font-bold uppercase tracking-tighter text-on-surface-variant">
                     {memory.likesCount ?? "0"}
                   </Text>
-                </View>
+                </Pressable>
               </View>
             </View>
           ) : (
             <View className="flex-row items-center justify-end">
-              <View className="items-center gap-1">
+              <Pressable
+                onPress={handleToggleLike}
+                disabled={liking}
+                className="items-center gap-1"
+              >
                 <View className="h-14 w-14 items-center justify-center rounded-full bg-surface-container-low">
-                  <Ionicons name="heart" size={26} color="#ffb4ab" />
+                  <Ionicons
+                    name={memory.likedByMe ? "heart" : "heart-outline"}
+                    size={26}
+                    color={memory.likedByMe ? "#ff5a70" : "#ffb4ab"}
+                  />
                 </View>
                 <Text className="font-label text-[11px] font-bold uppercase tracking-tighter text-on-surface-variant">
                   {memory.likesCount ?? "0"} Likes
                 </Text>
-              </View>
+              </Pressable>
             </View>
           )}
         </View>

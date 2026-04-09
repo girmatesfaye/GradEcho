@@ -120,13 +120,16 @@ export default function CreateMemoryScreen() {
       aspect: [4, 5],
       quality: 0.9,
       base64: true,
+      preferredAssetRepresentationMode:
+        ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Automatic,
     });
 
     if (!result.canceled) {
       const picked = result.assets[0]?.uri;
       const pickedBase64 = result.assets[0]?.base64 ?? null;
-      const pickedExtension =
+      const pickedExtensionFromName =
         result.assets[0]?.fileName?.split(".").pop()?.toLowerCase() ?? "jpg";
+      const pickedExtension = pickedBase64 ? "jpg" : pickedExtensionFromName;
 
       if (!picked) {
         setCoverUri(null);

@@ -73,8 +73,13 @@ export async function uploadMemoryImage({
   base64?: string;
   extension?: string;
 }) {
-  const fileExtension = extension ?? getFileExtension(uri ?? "", "jpg");
-  const mimeType = getMimeTypeFromExtension(fileExtension);
+  const useBase64Upload = Boolean(base64);
+  const fileExtension = useBase64Upload
+    ? "jpg"
+    : extension ?? getFileExtension(uri ?? "", "jpg");
+  const mimeType = useBase64Upload
+    ? "image/jpeg"
+    : getMimeTypeFromExtension(fileExtension);
   const filePath = `${userId}/${Date.now()}.${fileExtension}`;
 
   let bytes: ArrayBuffer;
@@ -101,11 +106,8 @@ export async function uploadMemoryImage({
     throw error;
   }
 
-  const { data } = supabase.storage
-    .from(MEMORY_MEDIA_BUCKET)
-    .getPublicUrl(filePath);
-
-  return data.publicUrl;
+  // Persist storage object path; consumers can resolve signed/public URLs as needed.
+  return filePath;
 }
 
 export async function uploadMemoryAudio({
@@ -147,9 +149,6 @@ export async function uploadMemoryAudio({
     throw error;
   }
 
-  const { data } = supabase.storage
-    .from(MEMORY_MEDIA_BUCKET)
-    .getPublicUrl(filePath);
-
-  return data.publicUrl;
+  // Persist storage object path; consumers can resolve signed/public URLs as needed.
+  return filePath;
 }
