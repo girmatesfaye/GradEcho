@@ -12,6 +12,7 @@ import {
 
 import { FeedHeader } from "@/components/feed-header";
 import { MemoryCard } from "@/components/memory-card";
+import { SupportModal } from "@/components/support-modal";
 import { isAuthExpiredErrorMessage } from "@/lib/auth-errors";
 import { fetchMemories, toggleMemoryLike } from "@/lib/memories";
 import { fetchCurrentProfile } from "@/lib/profiles";
@@ -29,6 +30,7 @@ function normalizeComparable(value: string | null | undefined) {
 
 export default function HomeFeedScreen() {
   const [avatarUri, setAvatarUri] = useState(AVATAR);
+  const [showSupportModal, setShowSupportModal] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<FeedFilter>("All");
   const [myUniversity, setMyUniversity] = useState<string | null>(null);
   const [myDepartment, setMyDepartment] = useState<string | null>(null);
@@ -130,6 +132,16 @@ export default function HomeFeedScreen() {
     await loadMemories("refresh");
   };
 
+  const handleBuyCoffee = async () => {
+    setShowSupportModal(false);
+
+    try {
+      await Linking.openURL("https://gurshaplus.com/girmatesfaye");
+    } catch {
+      Alert.alert("Could not open link", "Please try again in a moment.");
+    }
+  };
+
   const handleToggleLike = async (id: string) => {
     setLikingId(id);
 
@@ -197,7 +209,14 @@ export default function HomeFeedScreen() {
       <FeedHeader
         actionType="coffee"
         onActionPress={() => {
-          void Linking.openURL("https://buymeacoffee.com");
+          setShowSupportModal(true);
+        }}
+      />
+      <SupportModal
+        visible={showSupportModal}
+        onClose={() => setShowSupportModal(false)}
+        onConfirm={() => {
+          void handleBuyCoffee();
         }}
       />
       <ScrollView
