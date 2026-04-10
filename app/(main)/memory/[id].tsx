@@ -189,7 +189,6 @@ export default function MemoryDetailScreen() {
   }
 
   const title = memory.title ?? "The moment we finally made it.";
-  const narrative = memory.quote.trim();
   const endWords = memory.reflection?.trim() || null;
   const showCoverFallback = !memory.imageUri || coverLoadFailed;
   const imageTranslateY = scrollY.interpolate({

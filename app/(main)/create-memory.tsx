@@ -29,16 +29,12 @@ import { supabase } from "@/lib/supabase";
 
 const USER_AVATAR =
   "https://lh3.googleusercontent.com/aida-public/AB6AXuAH2kjIoZLn6ZXpKx6f3Mmfx0sclCivIJdkRXHOAUqtqL-vGa-VmQhhpyrxVhrQ4Uldi3Aw2pKNOZVmC3UX-a_59oQRx0Ue8JewbVw-Xra6t3_nvTH2505UsDjN6-xrkebk7CSCF5bjMTN4IqapIiZw6Dw_dUl_HiXSv1IVptje0t_m05CS-ivDVFxy-NWBdXlKUI5v_WCtSUpPxp8N_ozGErVcZhLwq1moW7HW4pJWkg8zPamp_BfBVESacvtXVimMbfwUs1VhdxtK";
-const NARRATIVE_CHAR_LIMIT = 260;
+const TITLE_CHAR_LIMIT = 260;
 const END_WORDS_CHAR_LIMIT = 600;
 
-function buildTitle(text: string) {
+function normalizeTitle(text: string) {
   const compact = text.trim().replace(/\s+/g, " ");
-  if (!compact) {
-    return "Untitled Memory";
-  }
-
-  return compact.slice(0, 48);
+  return compact;
 }
 
 function parseTags(rawTags: string) {
@@ -70,7 +66,7 @@ export default function CreateMemoryScreen() {
   const [voiceBase64, setVoiceBase64] = useState<string | null>(null);
   const [voiceExtension, setVoiceExtension] = useState<string>("m4a");
   const [voiceDuration, setVoiceDuration] = useState<string | null>(null);
-  const [quote, setQuote] = useState("");
+  const [title, setTitle] = useState("");
   const [reflection, setReflection] = useState("");
   const [tagsText, setTagsText] = useState("#graduation #memories");
   const [loading, setLoading] = useState(false);
@@ -132,8 +128,8 @@ export default function CreateMemoryScreen() {
       return;
     }
 
-    if (!quote.trim()) {
-      Alert.alert("Missing text", "Please add your memory narration.");
+    if (!title.trim()) {
+      Alert.alert("Missing text", "Please add your memory title.");
       return;
     }
 
@@ -169,8 +165,7 @@ export default function CreateMemoryScreen() {
 
       const payload = {
         user_id: user.id,
-        title: buildTitle(quote),
-        quote: quote.trim(),
+        title: normalizeTitle(title),
         reflection: reflection.trim() || null,
         image_url: imageUrl,
         voice_url: voiceUrl,
@@ -379,19 +374,19 @@ export default function CreateMemoryScreen() {
 
           <View className="mb-8 rounded-lg border border-outline-variant/10 bg-surface-container-high/40 p-6">
             <Text className="mb-4 font-label text-[10px] uppercase tracking-[0.2em] text-on-surface-variant">
-              The Narrative
+              The Title
             </Text>
             <TextInput
               multiline
-              value={quote}
-              onChangeText={setQuote}
-              placeholder="How do you feel?"
+              value={title}
+              onChangeText={setTitle}
+              placeholder="Write the memory title"
               placeholderTextColor="#353534"
-              maxLength={NARRATIVE_CHAR_LIMIT}
+              maxLength={TITLE_CHAR_LIMIT}
               className="min-h-[120px] flex-1 font-headline text-xl text-on-surface"
             />
             <Text className="mt-2 text-right font-label text-[10px] uppercase tracking-widest text-on-surface-variant">
-              {quote.length}/{NARRATIVE_CHAR_LIMIT}
+              {title.length}/{TITLE_CHAR_LIMIT}
             </Text>
             <View className="mt-4 gap-3 rounded-2xl border border-outline-variant/10 bg-surface-container-low px-4 py-3">
               <View className="flex-row items-center justify-between">

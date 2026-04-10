@@ -5,7 +5,6 @@ type SupabaseMemoryRow = {
   id: string;
   user_id: string;
   title: string | null;
-  quote: string;
   reflection: string | null;
   image_url: string;
   voice_url: string | null;
@@ -45,7 +44,6 @@ const MEMORY_SELECT = `
   id,
   user_id,
   title,
-  quote,
   reflection,
   image_url,
   voice_url,
@@ -217,7 +215,6 @@ function buildMemoryFromRow(
     avatarUri:
       profile?.avatar_url ??
       `https://api.dicebear.com/9.x/initials/png?seed=${encodeURIComponent(authorName)}`,
-    quote: row.quote,
     tags: row.tags ?? [],
     likesCount: formatLikeCount(likesCountValue),
     title: row.title ?? undefined,

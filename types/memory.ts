@@ -6,7 +6,6 @@ export type Memory = {
   university: string;
   imageUri: string;
   avatarUri: string;
-  quote: string;
   tags: string[];
   dateLabel?: string;
   likesCount?: string;

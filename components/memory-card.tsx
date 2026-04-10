@@ -123,13 +123,12 @@ export function MemoryCard({
   };
 
   const showImageFallback = !memory.imageUri || imageLoadFailed;
-  const narrativeSource = memory.title?.trim() || memory.quote;
-  const endWordsSource = memory.reflection?.trim() || memory.quote;
+  const narrativeSource = memory.title?.trim() || "Untitled Memory";
+  const endWordsSource = memory.reflection?.trim() || "";
   const narrativePreview = truncateText(narrativeSource, 56);
-  const endWordsPreview = truncateText(
-    endWordsSource,
-    variant === "feed" ? 120 : 95,
-  );
+  const endWordsPreview = endWordsSource
+    ? truncateText(endWordsSource, variant === "feed" ? 120 : 95)
+    : "";
 
   return (
     <Pressable
@@ -200,9 +199,11 @@ export function MemoryCard({
           <Text className="mb-2 font-headline text-xl font-bold leading-tight text-primary">
             {narrativePreview}
           </Text>
-          <Text className="mb-6 font-body text-sm italic leading-relaxed text-primary">
-            {endWordsPreview}
-          </Text>
+          {endWordsPreview ? (
+            <Text className="mb-6 font-body text-sm italic leading-relaxed text-primary">
+              {endWordsPreview}
+            </Text>
+          ) : null}
 
           <View className="mb-6 flex-row flex-wrap gap-2">
             {memory.tags.map((tag) => (
