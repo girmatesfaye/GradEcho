@@ -20,7 +20,7 @@ export function SupportModal({ visible, onClose, onConfirm }: Props) {
             Support GC Magazine
           </Text>
           <Text className="mt-2 font-body text-sm leading-relaxed text-on-surface-variant">
-            Enjoying the memories? Buy us a coffee to support the app.
+            You’ve been scrolling… now pay the coffee tax ☕😏{" "}
           </Text>
           <View className="mt-6 gap-3">
             <Pressable
