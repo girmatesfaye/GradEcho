@@ -5,6 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { OnboardingBackground } from "@/components/onboarding-background";
 import { PrimaryButton } from "@/components/primary-button";
+import { SecondaryButton } from "@/components/secondary-button";
 import { Ionicons } from "@expo/vector-icons";
 
 const BG = require("../../assets/images/Connect-screen.png");
@@ -25,11 +26,13 @@ export default function OnboardingConnectScreen() {
         {/* <Text className="font-headline text-base font-black italic tracking-tighter text-primary-container">
           The Keepsake
         </Text> */}
-        <Pressable onPress={() => router.push("/user-setup")}>
-          <Text className="font-headline font-bold text-primary-container">
-            Skip
-          </Text>
-        </Pressable>
+        <SecondaryButton
+          label="Skip"
+          onPress={() => router.push("/user-setup")}
+          fullWidth={false}
+          className="h-10 border-primary-container/40 px-5"
+          textClassName="text-sm font-semibold text-primary-container"
+        />
       </View>
       <ScrollView
         className="z-10 flex-1 px-6 pt-8"

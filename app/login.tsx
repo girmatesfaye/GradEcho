@@ -8,6 +8,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   Text,
   TextInput,
@@ -45,6 +46,7 @@ export default function LoginScreen() {
   const promptShownRef = useRef(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -152,7 +154,7 @@ export default function LoginScreen() {
       >
         <ScrollView
           className="flex-1 px-6 pt-8"
-          contentContainerStyle={{ paddingBottom: insets.bottom + 140 }}
+          contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
           contentInsetAdjustmentBehavior="automatic"
           automaticallyAdjustKeyboardInsets
           keyboardShouldPersistTaps="handled"
@@ -199,43 +201,47 @@ export default function LoginScreen() {
                   placeholder="Enter your password"
                   placeholderTextColor="#d0c6ab66"
                   autoCapitalize="none"
-                  secureTextEntry
-                  className="rounded-lg bg-surface-container-low px-6 py-5 font-body text-base text-on-surface"
+                  secureTextEntry={!passwordVisible}
+                  className="rounded-lg bg-surface-container-low px-6 py-5 pr-16 font-body text-base text-on-surface"
                 />
-                <View className="absolute right-6 top-1/2 -translate-y-1/2">
+                <Pressable
+                  onPress={() => setPasswordVisible((prev) => !prev)}
+                  hitSlop={10}
+                  className="absolute right-6 top-1/2 -translate-y-1/2"
+                >
                   <Ionicons
-                    name="lock-closed-outline"
+                    name={passwordVisible ? "eye-off-outline" : "eye-outline"}
                     size={22}
                     color="#d0c6ab55"
                   />
-                </View>
+                </Pressable>
               </View>
             </View>
           </View>
+          <View
+            className="rounded-2xl border border-outline-variant/15 bg-surface/75 px-4 py-4"
+            style={{ marginTop: 48 }}
+          >
+            <PrimaryButton
+              label="Login"
+              onPress={handleLogin}
+              rightIcon="arrow-forward"
+              disabled={loading}
+            />
+            {/* <SecondaryButton
+              label="Continue with Google"
+              onPress={handleGoogleSignIn}
+              className="mt-3"
+              disabled={loading}
+            /> */}
+            <SecondaryButton
+              label="Create New Account"
+              onPress={() => router.push("/user-setup")}
+              className="mt-3"
+              disabled={loading}
+            />
+          </View>
         </ScrollView>
-        <View
-          className="border-t border-outline-variant/20 bg-surface/90 px-6 pt-4"
-          style={{ paddingBottom: Math.max(insets.bottom, 16) }}
-        >
-          <PrimaryButton
-            label="Login"
-            onPress={handleLogin}
-            rightIcon="arrow-forward"
-            disabled={loading}
-          />
-          <SecondaryButton
-            label="Continue with Google"
-            onPress={handleGoogleSignIn}
-            className="mt-3"
-            disabled={loading}
-          />
-          <SecondaryButton
-            label="Create New Account"
-            onPress={() => router.push("/user-setup")}
-            className="mt-3"
-            disabled={loading}
-          />
-        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

@@ -5,6 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { OnboardingBackground } from "@/components/onboarding-background";
 import { PrimaryButton } from "@/components/primary-button";
+import { SecondaryButton } from "@/components/secondary-button";
 
 const BG = require("../../assets/images/Archive-screen.png");
 
@@ -16,11 +17,13 @@ export default function OnboardingArchiveScreen() {
         <Pressable onPress={() => router.back()} hitSlop={12}>
           <Ionicons name="arrow-back" size={24} color="#ffd700" />
         </Pressable>
-        <Pressable onPress={() => router.push("/user-setup")}>
-          <Text className="font-headline font-bold text-primary-container">
-            Skip
-          </Text>
-        </Pressable>
+        <SecondaryButton
+          label="Skip"
+          onPress={() => router.push("/user-setup")}
+          fullWidth={false}
+          className="h-10 border-primary-container/40 px-5"
+          textClassName="text-sm font-semibold text-primary-container"
+        />
       </View>
       <ScrollView
         className="z-10 flex-1 px-8 pt-8"
