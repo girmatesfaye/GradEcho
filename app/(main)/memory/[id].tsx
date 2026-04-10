@@ -369,8 +369,8 @@ export default function MemoryDetailScreen() {
                       color={memory.likedByMe ? "#ff5a70" : "#ffb4ab"}
                     />
                   </View>
-                  <Text className="font-label text-[11px] font-bold uppercase tracking-tighter text-on-surface-variant">
-                    {memory.likesCount ?? "0"} Likes
+                  <Text className="font-label text-[11px] font-bold  tracking-tighter text-on-surface-variant">
+                    {memory.likesCount ?? "0"}
                   </Text>
                 </Pressable>
               </View>

@@ -2,6 +2,7 @@ import { router, useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import {
   Alert,
+  Linking,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -13,7 +14,6 @@ import { FeedHeader } from "@/components/feed-header";
 import { MemoryCard } from "@/components/memory-card";
 import { fetchMemories, toggleMemoryLike } from "@/lib/memories";
 import { fetchCurrentProfile } from "@/lib/profiles";
-import { supabase } from "@/lib/supabase";
 import type { Memory } from "@/types/memory";
 
 const AVATAR =
@@ -27,8 +27,6 @@ function normalizeComparable(value: string | null | undefined) {
 }
 
 export default function HomeFeedScreen() {
-  const [isAdminMode, setIsAdminMode] = useState(false);
-  const [isAdminUser, setIsAdminUser] = useState(false);
   const [avatarUri, setAvatarUri] = useState(AVATAR);
   const [selectedFilter, setSelectedFilter] = useState<FeedFilter>("All");
   const [myUniversity, setMyUniversity] = useState<string | null>(null);
@@ -38,8 +36,6 @@ export default function HomeFeedScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [likingId, setLikingId] = useState<string | null>(null);
 
   const loadMemories = useCallback(async (silent = false) => {
@@ -48,7 +44,6 @@ export default function HomeFeedScreen() {
     } else {
       setLoading(true);
     }
-    setDeleteError(null);
     setLoadError(null);
 
     const [memoriesResult, profileResult] = await Promise.allSettled([
@@ -70,7 +65,12 @@ export default function HomeFeedScreen() {
     if (profileResult.status === "fulfilled") {
       const profile = profileResult.value;
       const safeName = profile?.full_name?.trim();
-      setIsAdminUser(profile?.is_admin ?? false);
+      if (profile?.is_admin) {
+        router.replace("/admin");
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
       setMyUniversity(profile?.university ?? null);
       setMyDepartment(profile?.department ?? null);
       setMyBatch(profile?.graduation_year ?? null);
@@ -81,14 +81,12 @@ export default function HomeFeedScreen() {
             : AVATAR),
       );
     } else {
-      setIsAdminUser(false);
       setMyUniversity(null);
       setMyDepartment(null);
       setMyBatch(null);
       setAvatarUri(AVATAR);
     }
 
-    setIsAdminMode(false);
     setLoading(false);
     setRefreshing(false);
   }, []);
@@ -101,26 +99,6 @@ export default function HomeFeedScreen() {
 
   const handleRefresh = async () => {
     await loadMemories(true);
-  };
-
-  const handleDeleteMemory = async (id: string) => {
-    setDeletingId(id);
-    setDeleteError(null);
-
-    const { error } = await supabase.from("memories").delete().eq("id", id);
-
-    setDeletingId(null);
-
-    if (error) {
-      setDeleteError(
-        error.message ||
-          "Delete failed. Supabase rejected the moderation request.",
-      );
-      Alert.alert("Delete failed", error.message);
-      return;
-    }
-
-    setMemories((prev) => prev.filter((m) => m.id !== id));
   };
 
   const handleToggleLike = async (id: string) => {
@@ -148,7 +126,6 @@ export default function HomeFeedScreen() {
     }
   };
 
-  const canModerate = isAdminUser;
   const filteredMemories = useMemo(() => {
     if (selectedFilter === "All") {
       return memories;
@@ -189,20 +166,9 @@ export default function HomeFeedScreen() {
   return (
     <View className="flex-1 bg-surface">
       <FeedHeader
-        avatarUri={avatarUri}
-        isAdminMode={isAdminMode}
-        onAvatarPress={() =>
-          router.push((isAdminUser ? "/admin" : "/profile") as never)
-        }
-        onAvatarLongPress={() => {
-          if (!isAdminUser) {
-            setDeleteError(
-              "Admin mode is only available for Supabase admin accounts.",
-            );
-            return;
-          }
-
-          setIsAdminMode((v) => !v);
+        actionType="coffee"
+        onActionPress={() => {
+          void Linking.openURL("https://buymeacoffee.com");
         }}
       />
       <ScrollView
@@ -228,20 +194,6 @@ export default function HomeFeedScreen() {
           <View className="mb-4 rounded-xl border border-error/30 bg-error/10 px-4 py-3">
             <Text className="font-label text-[10px] font-bold uppercase tracking-widest text-error">
               {loadError}
-            </Text>
-          </View>
-        ) : null}
-        {isAdminMode ? (
-          <View className="mb-4 rounded-xl border border-error/30 bg-error/10 px-4 py-3">
-            <Text className="font-label text-[10px] font-bold uppercase tracking-widest text-error">
-              Admin mode enabled: delete actions now go through Supabase RLS.
-            </Text>
-          </View>
-        ) : null}
-        {deleteError ? (
-          <View className="mb-4 rounded-xl border border-error/30 bg-error/10 px-4 py-3">
-            <Text className="font-label text-[10px] font-bold uppercase tracking-widest text-error">
-              {deleteError}
             </Text>
           </View>
         ) : null}
@@ -278,11 +230,8 @@ export default function HomeFeedScreen() {
           <MemoryCard
             key={m.id}
             memory={m}
-            showDelete={isAdminMode && canModerate}
-            onDelete={handleDeleteMemory}
             onToggleLike={handleToggleLike}
             liking={likingId === m.id}
-            deleting={deletingId === m.id}
             onPress={() =>
               router.push({ pathname: "/memory/[id]", params: { id: m.id } })
             }

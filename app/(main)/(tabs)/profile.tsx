@@ -1,12 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
+import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { Alert, ScrollView, Text, View } from "react-native";
 
 import { FeedHeader } from "@/components/feed-header";
 import { MemoryCard } from "@/components/memory-card";
 import { fetchMemoriesByUserId } from "@/lib/memories";
 import { fetchCurrentProfile } from "@/lib/profiles";
+import { supabase } from "@/lib/supabase";
 import type { Memory } from "@/types/memory";
 
 const AVATAR =
@@ -39,9 +41,9 @@ function parseLikesCount(value?: string) {
 }
 
 export default function ProfileScreen() {
-  const [fullName, setFullName] = useState("GradEcho Member");
-  const [metaLine, setMetaLine] = useState("Member");
-  const [university, setUniversity] = useState("University not set");
+  const [fullName, setFullName] = useState("");
+  const [metaLine, setMetaLine] = useState("");
+  const [university, setUniversity] = useState("");
   const [avatarUri, setAvatarUri] = useState(AVATAR);
   const [archive, setArchive] = useState<Memory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -120,14 +122,33 @@ export default function ProfileScreen() {
   }, []);
 
   const totalMemories = archive.length;
+  const totalVoiceMemories = useMemo(
+    () => archive.filter((memory) => memory.hasVoice).length,
+    [archive],
+  );
   const totalEchoes = useMemo(
-    () => archive.reduce((sum, memory) => sum + parseLikesCount(memory.likesCount), 0),
+    () =>
+      archive.reduce(
+        (sum, memory) => sum + parseLikesCount(memory.likesCount),
+        0,
+      ),
     [archive],
   );
 
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      Alert.alert("Logout failed", error.message);
+      return;
+    }
+
+    router.replace("/login");
+  };
+
   return (
     <View className="flex-1 bg-surface">
-      <FeedHeader avatarUri={avatarUri} />
+      <FeedHeader actionType="logout" onActionPress={handleLogout} />
       <ScrollView
         className="flex-1 px-4 pt-6"
         contentContainerClassName="pb-32"
@@ -163,15 +184,21 @@ export default function ProfileScreen() {
             </View>
           </View>
           <View>
-            <Text className="font-headline text-2xl font-bold leading-tight text-primary">
-              {fullName}
-            </Text>
-            <Text className="font-label text-[10px] uppercase tracking-[0.2em] text-on-surface-variant">
-              {metaLine}
-            </Text>
-            <Text className="font-label text-[10px] uppercase tracking-[0.2em] text-primary-container/70">
-              {university}
-            </Text>
+            {fullName ? (
+              <Text className="font-headline text-2xl font-bold leading-tight text-primary">
+                {fullName}
+              </Text>
+            ) : null}
+            {metaLine ? (
+              <Text className="font-label text-[10px] uppercase tracking-[0.2em] text-on-surface-variant">
+                {metaLine}
+              </Text>
+            ) : null}
+            {university ? (
+              <Text className="font-label text-[10px] uppercase tracking-[0.2em] text-primary-container/70">
+                {university}
+              </Text>
+            ) : null}
           </View>
         </View>
         <View className="mb-10 flex-row items-center justify-between rounded-2xl border border-outline-variant/10 bg-surface-container-low/40 p-6">
@@ -186,17 +213,10 @@ export default function ProfileScreen() {
           <View className="h-8 w-px bg-outline-variant/20" />
           <View className="flex-1 items-center">
             <Text className="font-headline text-xl font-bold text-primary">
-              {totalEchoes.toLocaleString()}
+              {totalVoiceMemories}
             </Text>
             <Text className="font-label text-[9px] uppercase tracking-widest text-on-surface-variant">
-              Echoes
-            </Text>
-          </View>
-          <View className="h-8 w-px bg-outline-variant/20" />
-          <View className="flex-1 items-center">
-            <Text className="font-headline text-xl font-bold text-primary">0</Text>
-            <Text className="font-label text-[9px] uppercase tracking-widest text-on-surface-variant">
-              Awards
+              Voice
             </Text>
           </View>
         </View>
