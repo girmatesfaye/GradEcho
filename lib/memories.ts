@@ -130,9 +130,6 @@ async function resolveStorageAssetUrl(
 
   const storagePath = extractStoragePath(value, MEMORY_MEDIA_BUCKET);
   if (!storagePath) {
-    console.log("[memories] resolveStorageAssetUrl:passthrough", {
-      value,
-    });
     if (/^https?:\/\//i.test(value)) {
       return value;
     }
@@ -140,42 +137,21 @@ async function resolveStorageAssetUrl(
     return value;
   }
 
-  console.log("[memories] resolveStorageAssetUrl:storage-path", {
-    value,
-    storagePath,
-  });
-
   const { data: signedData, error: signedError } = await supabase.storage
     .from(MEMORY_MEDIA_BUCKET)
     .createSignedUrl(storagePath, SIGNED_URL_TTL_SECONDS);
 
   if (!signedError && signedData?.signedUrl) {
-    console.log("[memories] resolveStorageAssetUrl:signed-url", {
-      storagePath,
-    });
     return signedData.signedUrl;
   }
-
-  console.warn("[memories] resolveStorageAssetUrl:signed-url-failed", {
-    storagePath,
-    signedError,
-  });
 
   const { data: publicData } = supabase.storage
     .from(MEMORY_MEDIA_BUCKET)
     .getPublicUrl(storagePath);
 
   if (publicData?.publicUrl) {
-    console.log("[memories] resolveStorageAssetUrl:public-url", {
-      storagePath,
-    });
     return publicData.publicUrl;
   }
-
-  console.warn("[memories] resolveStorageAssetUrl:all-failed", {
-    storagePath,
-    value,
-  });
 
   return value;
 }

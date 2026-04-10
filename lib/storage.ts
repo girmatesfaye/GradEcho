@@ -7,8 +7,6 @@ import { supabase } from "@/lib/supabase";
 const MEMORY_MEDIA_BUCKET = "memory-media";
 
 export async function normalizeImage(uri: string) {
-  console.log("[storage] normalizeImage:start", { uri });
-
   try {
     const result = await ImageManipulator.manipulateAsync(
       uri,
@@ -19,15 +17,8 @@ export async function normalizeImage(uri: string) {
       },
     );
 
-    console.log("[storage] normalizeImage:success", {
-      inputUri: uri,
-      outputUri: result.uri,
-      outputIsFileUri: result.uri.startsWith("file://"),
-    });
-
     return result.uri;
-  } catch (error) {
-    console.warn("[storage] normalizeImage:failed", { uri, error });
+  } catch {
     return uri;
   }
 }
@@ -36,27 +27,11 @@ async function uriToArrayBuffer(uri: string): Promise<ArrayBuffer> {
   try {
     const response = await fetch(uri);
     if (response.ok) {
-      console.log("[storage] uriToArrayBuffer:fetch-success", {
-        uri,
-        status: response.status,
-      });
       return response.arrayBuffer();
     }
-    console.warn("[storage] uriToArrayBuffer:fetch-non-ok", {
-      uri,
-      status: response.status,
-    });
   } catch {
     // Fall back to reading from the local filesystem.
-    console.warn("[storage] uriToArrayBuffer:fetch-failed", { uri });
   }
-
-  const fileInfo = await FileSystem.getInfoAsync(uri);
-  console.log("[storage] uriToArrayBuffer:filesystem-fallback", {
-    uri,
-    exists: fileInfo.exists,
-    size: fileInfo.exists ? fileInfo.size : null,
-  });
 
   const base64 = await FileSystem.readAsStringAsync(uri, {
     encoding: FileSystem.EncodingType.Base64,
@@ -98,17 +73,9 @@ export async function uploadMemoryImage({
   userId: string;
   uri?: string;
 }) {
-  console.log("[storage] uploadMemoryImage:normalize-start", { userId, uri });
   const normalizedUri = uri ? await normalizeImage(uri) : undefined;
   const filePath = `${userId}/${Date.now()}.jpg`;
   const mimeType = "image/jpeg";
-
-  console.log("[storage] uploadMemoryImage:start", {
-    userId,
-    inputUri: uri,
-    normalizedUri,
-    filePath,
-  });
 
   let bytes: ArrayBuffer;
   try {
@@ -118,17 +85,7 @@ export async function uploadMemoryImage({
     }
 
     bytes = await uriToArrayBuffer(source);
-    console.log("[storage] uploadMemoryImage:bytes-ready", {
-      filePath,
-      byteLength: bytes.byteLength,
-      strategy: "uri-to-array-buffer",
-    });
-  } catch (error) {
-    console.error("[storage] uploadMemoryImage:read-failed", {
-      inputUri: uri,
-      normalizedUri,
-      error,
-    });
+  } catch {
     throw new Error("Could not read selected image file.");
   }
 
@@ -140,7 +97,6 @@ export async function uploadMemoryImage({
     });
 
   if (error) {
-    console.error("[storage] uploadMemoryImage:error", { filePath, error });
     throw error;
   }
 
@@ -149,25 +105,9 @@ export async function uploadMemoryImage({
     .from(MEMORY_MEDIA_BUCKET)
     .createSignedUrl(persistedPath, 60);
 
-  console.log("[storage] uploadMemoryImage:verify-result", {
-    persistedPath,
-    hasSignedUrl: Boolean(verifyData?.signedUrl),
-    verifyError: verifyError?.message,
-  });
-
   if (verifyError || !verifyData?.signedUrl) {
-    console.error("[storage] uploadMemoryImage:verify-failed", {
-      requestedPath: filePath,
-      persistedPath,
-      verifyError,
-    });
     throw new Error("Image uploaded but verification failed.");
   }
-
-  console.log("[storage] uploadMemoryImage:success", {
-    requestedPath: filePath,
-    persistedPath,
-  });
 
   return persistedPath;
 }

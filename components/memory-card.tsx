@@ -191,16 +191,7 @@ export function MemoryCard({
             source={{ uri: memory.imageUri }}
             className="h-full w-full"
             resizeMode="cover"
-            onError={(event) => {
-              console.warn("[memory-card] cover failed", {
-                memoryId: memory.id,
-                imageUri: memory.imageUri,
-                error:
-                  (event as { nativeEvent?: { error?: string } })?.nativeEvent
-                    ?.error ?? (event as { error?: string })?.error,
-              });
-              setImageLoadFailed(true);
-            }}
+            onError={() => setImageLoadFailed(true)}
           />
         )}
 

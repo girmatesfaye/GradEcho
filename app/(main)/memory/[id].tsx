@@ -252,17 +252,7 @@ export default function MemoryDetailScreen() {
                 source={{ uri: memory.imageUri }}
                 className="h-full w-full"
                 resizeMode="cover"
-                onError={(event) => {
-                  console.warn("[memory-detail] cover failed", {
-                    memoryId: memory.id,
-                    imageUri: memory.imageUri,
-                    error:
-                      (event as { nativeEvent?: { error?: string } })
-                        ?.nativeEvent?.error ??
-                      (event as { error?: string })?.error,
-                  });
-                  setCoverLoadFailed(true);
-                }}
+                onError={() => setCoverLoadFailed(true)}
               />
             )}
           </Animated.View>
