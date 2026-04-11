@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import Slider from "@react-native-community/slider";
 import { Audio } from "expo-av";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -10,6 +11,7 @@ import {
 } from "react-native";
 
 import { TagChip } from "@/components/tag-chip";
+import { formatDuration } from "@/lib/audio";
 import type { Memory } from "@/types/memory";
 
 type Props = {
@@ -56,10 +58,20 @@ export function MemoryCard({
   deleting = false,
 }: Props) {
   const soundRef = useRef<Audio.Sound | null>(null);
+  const isSeekingRef = useRef(false);
   const [isPlayingVoice, setIsPlayingVoice] = useState(false);
   const [playBusy, setPlayBusy] = useState(false);
+  const [positionMillis, setPositionMillis] = useState(0);
+  const [durationMillis, setDurationMillis] = useState(0);
+  const [isSeeking, setIsSeeking] = useState(false);
   const [imageLoadFailed, setImageLoadFailed] = useState(false);
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
+
+  const resetPlaybackState = () => {
+    setIsPlayingVoice(false);
+    setPositionMillis(0);
+    setDurationMillis(0);
+  };
 
   useEffect(() => {
     return () => {
@@ -71,6 +83,21 @@ export function MemoryCard({
       }
     };
   }, []);
+
+  useEffect(() => {
+    isSeekingRef.current = isSeeking;
+  }, [isSeeking]);
+
+  useEffect(() => {
+    setIsSeeking(false);
+    if (soundRef.current) {
+      void soundRef.current.unloadAsync().catch(() => {
+        // Ignore cleanup races.
+      });
+      soundRef.current = null;
+    }
+    resetPlaybackState();
+  }, [memory.id]);
 
   useEffect(() => {
     setImageLoadFailed(false);
@@ -107,7 +134,15 @@ export function MemoryCard({
         if (status.isLoaded && status.isPlaying) {
           await soundRef.current.pauseAsync();
           setIsPlayingVoice(false);
-        } else {
+        } else if (status.isLoaded) {
+          if (
+            typeof status.durationMillis === "number" &&
+            status.durationMillis > 0 &&
+            status.positionMillis >= status.durationMillis
+          ) {
+            await soundRef.current.setPositionAsync(0);
+            setPositionMillis(0);
+          }
           await soundRef.current.playAsync();
           setIsPlayingVoice(true);
         }
@@ -123,9 +158,16 @@ export function MemoryCard({
             return;
           }
 
+          if (!isSeekingRef.current) {
+            setPositionMillis(status.positionMillis);
+          }
+          if (typeof status.durationMillis === "number") {
+            setDurationMillis(status.durationMillis);
+          }
           setIsPlayingVoice(status.isPlaying);
           if (status.didJustFinish) {
             setIsPlayingVoice(false);
+            setPositionMillis(status.durationMillis ?? status.positionMillis);
           }
         },
       );
@@ -139,6 +181,25 @@ export function MemoryCard({
     }
   };
 
+  const handleSeekStart = () => {
+    setIsSeeking(true);
+  };
+
+  const handleSeekComplete = async (value: number) => {
+    setIsSeeking(false);
+    setPositionMillis(value);
+
+    if (!soundRef.current) {
+      return;
+    }
+
+    try {
+      await soundRef.current.setPositionAsync(value);
+    } catch {
+      // Ignore seek errors and keep current UI state.
+    }
+  };
+
   const showImageFallback = !memory.imageUri || imageLoadFailed;
   const narrativeSource = memory.title?.trim() || "Untitled Memory";
   const endWordsSource = memory.reflection?.trim() || "";
@@ -147,6 +208,12 @@ export function MemoryCard({
     ? truncateText(endWordsSource, variant === "feed" ? 120 : 95)
     : "";
   const avatarInitials = getInitials(memory.authorName);
+  const maxDuration = Math.max(durationMillis, 1);
+  const elapsedLabel = formatDuration(positionMillis);
+  const totalLabel =
+    durationMillis > 0
+      ? formatDuration(durationMillis)
+      : (memory.voiceDuration ?? "00:00");
 
   return (
     <Pressable
@@ -262,11 +329,6 @@ export function MemoryCard({
                       : "Play"}
                 </Text>
               </Pressable>
-              {memory.voiceUrl ? (
-                <Text className="font-label text-[10px] font-bold uppercase tracking-widest text-white/80">
-                  {memory.voiceDuration ?? "00:00"}
-                </Text>
-              ) : null}
             </View>
 
             <View className="flex-row items-center gap-3">
@@ -292,6 +354,31 @@ export function MemoryCard({
               )}
             </View>
           </View>
+
+          {memory.voiceUrl ? (
+            <View className="mt-4">
+              <Slider
+                style={{ width: "100%", height: 20 }}
+                value={positionMillis}
+                minimumValue={0}
+                maximumValue={maxDuration}
+                minimumTrackTintColor="#ffd700"
+                maximumTrackTintColor="rgba(255, 246, 223, 0.25)"
+                thumbTintColor="#ffd700"
+                onSlidingStart={handleSeekStart}
+                onValueChange={(value) => setPositionMillis(value)}
+                onSlidingComplete={handleSeekComplete}
+              />
+              <View className="mt-1 flex-row items-center justify-between">
+                <Text className="font-label text-[10px] uppercase tracking-widest text-white/75">
+                  {elapsedLabel}
+                </Text>
+                <Text className="font-label text-[10px] uppercase tracking-widest text-white/75">
+                  {totalLabel}
+                </Text>
+              </View>
+            </View>
+          ) : null}
         </View>
       </View>
     </Pressable>

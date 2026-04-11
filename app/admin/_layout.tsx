@@ -7,6 +7,7 @@ import { fetchCurrentProfile } from "@/lib/profiles";
 export default function AdminLayout() {
   const [ready, setReady] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -18,6 +19,7 @@ export default function AdminLayout() {
         return;
       }
 
+      setIsAuthenticated(Boolean(profile));
       setIsAdmin(profile?.is_admin ?? false);
       setReady(true);
     };
@@ -33,8 +35,12 @@ export default function AdminLayout() {
     return null;
   }
 
-  if (!isAdmin) {
+  if (!isAuthenticated) {
     return <Redirect href="/login?reason=expired" />;
+  }
+
+  if (!isAdmin) {
+    return <Redirect href="/home" />;
   }
 
   return (

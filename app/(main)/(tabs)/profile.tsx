@@ -6,6 +6,7 @@ import { Alert, Image, Pressable, ScrollView, Text, View } from "react-native";
 
 import { FeedHeader } from "@/components/feed-header";
 import { MemoryCard } from "@/components/memory-card";
+import { PrimaryButton } from "@/components/primary-button";
 import { isAuthExpiredErrorMessage } from "@/lib/auth-errors";
 import { fetchMemoriesByUserId } from "@/lib/memories";
 import { fetchCurrentProfile, updateProfileAvatar } from "@/lib/profiles";
@@ -51,6 +52,7 @@ export default function ProfileScreen() {
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const [archive, setArchive] = useState<Memory[]>([]);
   const [profileId, setProfileId] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -70,6 +72,7 @@ export default function ProfileScreen() {
 
       if (!profile) {
         setArchive([]);
+        setIsAdmin(false);
         setLoadError("Please login to continue.");
         setLoading(false);
         Alert.alert(
@@ -91,6 +94,7 @@ export default function ProfileScreen() {
       setUniversity(safeUniversity);
       setAvatarUri(profile.avatar_url ?? "");
       setProfileId(profile.id);
+      setIsAdmin(profile.is_admin);
 
       try {
         const memories = await fetchMemoriesByUserId(profile.id);
@@ -330,6 +334,14 @@ export default function ProfileScreen() {
             </Text>
           </View>
         </View>
+        {isAdmin ? (
+          <View className="mb-8 px-2">
+            <PrimaryButton
+              label="Open Admin Center"
+              onPress={() => router.push("/admin")}
+            />
+          </View>
+        ) : null}
         <View className="mb-6 flex-row items-baseline justify-between px-2">
           <Text className="font-headline text-lg font-bold text-primary">
             Personal Archive

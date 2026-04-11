@@ -1,4 +1,4 @@
-import { router, useFocusEffect, useNavigation } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Alert, RefreshControl, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -11,7 +11,6 @@ import { supabase } from "@/lib/supabase";
 import type { Memory } from "@/types/memory";
 
 export default function AdminScreen() {
-  const navigation = useNavigation();
   const [memories, setMemories] = useState<Memory[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -19,11 +18,6 @@ export default function AdminScreen() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const handleBack = () => {
-    if (navigation.canGoBack()) {
-      router.back();
-      return;
-    }
-
     router.replace("/home");
   };
 

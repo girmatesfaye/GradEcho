@@ -23,6 +23,7 @@ import {
 } from "react-native-safe-area-context";
 
 import { PrimaryButton } from "@/components/primary-button";
+import { formatDuration } from "@/lib/audio";
 import { isAuthExpiredErrorMessage } from "@/lib/auth-errors";
 import { uploadMemoryAudio, uploadMemoryImage } from "@/lib/storage";
 import { supabase } from "@/lib/supabase";
@@ -40,16 +41,6 @@ function parseTags(rawTags: string) {
     .map((tag) => tag.trim())
     .filter(Boolean)
     .map((tag) => (tag.startsWith("#") ? tag : `#${tag}`));
-}
-
-function formatDuration(ms: number) {
-  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
-  const minutes = Math.floor(totalSeconds / 60)
-    .toString()
-    .padStart(2, "0");
-  const seconds = (totalSeconds % 60).toString().padStart(2, "0");
-
-  return `${minutes}:${seconds}`;
 }
 
 export default function CreateMemoryScreen() {

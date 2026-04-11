@@ -37,5 +37,5 @@ export default function Index() {
     return null;
   }
 
-  return <Redirect href={isAuthenticated ? "/home" : "/welcome"} />;
+  return <Redirect href={isAuthenticated ? "/home" : "/capture"} />;
 }

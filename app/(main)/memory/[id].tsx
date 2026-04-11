@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import Slider from "@react-native-community/slider";
 import { Audio } from "expo-av";
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
@@ -16,10 +17,24 @@ import {
 import { MainTabBar } from "@/components/main-tab-bar";
 import { SecondaryButton } from "@/components/secondary-button";
 import { TagChip } from "@/components/tag-chip";
+import { formatDuration } from "@/lib/audio";
 import { fetchMemoryById, toggleMemoryLike } from "@/lib/memories";
 import type { Memory } from "@/types/memory";
 
 const HERO_HEIGHT = 520;
+
+function getInitials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+
+  if (parts.length === 0) {
+    return "GM";
+  }
+
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+}
 
 export default function MemoryDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -29,9 +44,20 @@ export default function MemoryDetailScreen() {
   const [liking, setLiking] = useState(false);
   const [isPlayingVoice, setIsPlayingVoice] = useState(false);
   const [playBusy, setPlayBusy] = useState(false);
+  const [positionMillis, setPositionMillis] = useState(0);
+  const [durationMillis, setDurationMillis] = useState(0);
+  const [isSeeking, setIsSeeking] = useState(false);
   const [coverLoadFailed, setCoverLoadFailed] = useState(false);
+  const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const soundRef = useRef<Audio.Sound | null>(null);
+  const isSeekingRef = useRef(false);
   const scrollY = useRef(new Animated.Value(0)).current;
+
+  const resetPlaybackState = () => {
+    setIsPlayingVoice(false);
+    setPositionMillis(0);
+    setDurationMillis(0);
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -89,8 +115,27 @@ export default function MemoryDetailScreen() {
   }, []);
 
   useEffect(() => {
+    isSeekingRef.current = isSeeking;
+  }, [isSeeking]);
+
+  useEffect(() => {
     setCoverLoadFailed(false);
   }, [memory?.imageUri]);
+
+  useEffect(() => {
+    setAvatarLoadFailed(false);
+  }, [memory?.avatarUri]);
+
+  useEffect(() => {
+    setIsSeeking(false);
+    if (soundRef.current) {
+      void soundRef.current.unloadAsync().catch(() => {
+        // Ignore cleanup races.
+      });
+      soundRef.current = null;
+    }
+    resetPlaybackState();
+  }, [memory?.id]);
 
   const handleToggleLike = async () => {
     if (!memory || liking) {
@@ -131,7 +176,15 @@ export default function MemoryDetailScreen() {
         if (status.isLoaded && status.isPlaying) {
           await soundRef.current.pauseAsync();
           setIsPlayingVoice(false);
-        } else {
+        } else if (status.isLoaded) {
+          if (
+            typeof status.durationMillis === "number" &&
+            status.durationMillis > 0 &&
+            status.positionMillis >= status.durationMillis
+          ) {
+            await soundRef.current.setPositionAsync(0);
+            setPositionMillis(0);
+          }
           await soundRef.current.playAsync();
           setIsPlayingVoice(true);
         }
@@ -147,9 +200,16 @@ export default function MemoryDetailScreen() {
             return;
           }
 
+          if (!isSeekingRef.current) {
+            setPositionMillis(status.positionMillis);
+          }
+          if (typeof status.durationMillis === "number") {
+            setDurationMillis(status.durationMillis);
+          }
           setIsPlayingVoice(status.isPlaying);
           if (status.didJustFinish) {
             setIsPlayingVoice(false);
+            setPositionMillis(status.durationMillis ?? status.positionMillis);
           }
         },
       );
@@ -160,6 +220,25 @@ export default function MemoryDetailScreen() {
       setIsPlayingVoice(false);
     } finally {
       setPlayBusy(false);
+    }
+  };
+
+  const handleSeekStart = () => {
+    setIsSeeking(true);
+  };
+
+  const handleSeekComplete = async (value: number) => {
+    setIsSeeking(false);
+    setPositionMillis(value);
+
+    if (!soundRef.current) {
+      return;
+    }
+
+    try {
+      await soundRef.current.setPositionAsync(value);
+    } catch {
+      // Ignore seek errors and keep current UI state.
     }
   };
 
@@ -191,6 +270,13 @@ export default function MemoryDetailScreen() {
   const title = memory.title ?? "The moment we finally made it.";
   const endWords = memory.reflection?.trim() || null;
   const showCoverFallback = !memory.imageUri || coverLoadFailed;
+  const avatarInitials = getInitials(memory.authorName);
+  const maxDuration = Math.max(durationMillis, 1);
+  const elapsedLabel = formatDuration(positionMillis);
+  const totalLabel =
+    durationMillis > 0
+      ? formatDuration(durationMillis)
+      : (memory.voiceDuration ?? "00:00");
   const imageTranslateY = scrollY.interpolate({
     inputRange: [-HERO_HEIGHT, 0, HERO_HEIGHT],
     outputRange: [-HERO_HEIGHT * 0.3, 0, -HERO_HEIGHT * 0.2],
@@ -262,11 +348,20 @@ export default function MemoryDetailScreen() {
         <View className="-mt-10 rounded-t-[32px] bg-surface px-8 pb-36 pt-7">
           <View className="mb-8 flex-row items-center gap-4">
             <View className="h-16 w-16 overflow-hidden rounded-full border-[3px] border-primary-container bg-surface-container-highest">
-              <Image
-                source={{ uri: memory.avatarUri }}
-                className="h-full w-full"
-                contentFit="cover"
-              />
+              {!memory.avatarUri || avatarLoadFailed ? (
+                <View className="h-full w-full items-center justify-center bg-surface-container-low">
+                  <Text className="font-headline text-lg font-black tracking-tight text-primary">
+                    {avatarInitials}
+                  </Text>
+                </View>
+              ) : (
+                <Image
+                  source={{ uri: memory.avatarUri }}
+                  className="h-full w-full"
+                  contentFit="cover"
+                  onError={() => setAvatarLoadFailed(true)}
+                />
+              )}
             </View>
             <View className="flex-1">
               <Text className="font-headline text-2xl font-bold leading-tight text-primary">
@@ -322,14 +417,23 @@ export default function MemoryDetailScreen() {
                       {memory.voiceLabel ?? "Voice memo"}
                     </Text>
                     <Text className="font-label text-[11px] font-bold tracking-wider text-primary">
-                      {memory.voiceDuration ?? "0:00"}
+                      {totalLabel}
                     </Text>
                   </View>
-                  <View className="h-1.5 w-full overflow-hidden rounded-full bg-surface-container-highest">
-                    <View className="h-full w-[33%] rounded-full bg-primary-container" />
-                  </View>
+                  <Slider
+                    style={{ width: "100%", height: 20 }}
+                    value={positionMillis}
+                    minimumValue={0}
+                    maximumValue={maxDuration}
+                    minimumTrackTintColor="#ffd700"
+                    maximumTrackTintColor="rgba(255, 246, 223, 0.25)"
+                    thumbTintColor="#ffd700"
+                    onSlidingStart={handleSeekStart}
+                    onValueChange={(value) => setPositionMillis(value)}
+                    onSlidingComplete={handleSeekComplete}
+                  />
                   <Text className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant/80">
-                    Tap play to listen
+                    {elapsedLabel} / {totalLabel}
                   </Text>
                 </View>
                 <Pressable

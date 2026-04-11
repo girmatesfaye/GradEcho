@@ -21,6 +21,7 @@ import {
 
 import { PrimaryButton } from "@/components/primary-button";
 import { SecondaryButton } from "@/components/secondary-button";
+import { fetchCurrentProfile } from "@/lib/profiles";
 import { supabase } from "@/lib/supabase";
 
 const BG = require("../assets/stitch/user-setup.png");
@@ -48,6 +49,11 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const redirectAfterLogin = async () => {
+    const profile = await fetchCurrentProfile();
+    router.replace(profile?.is_admin ? "/admin" : "/home");
+  };
 
   useEffect(() => {
     if (promptShownRef.current) {
@@ -78,7 +84,7 @@ export default function LoginScreen() {
       return;
     }
 
-    router.replace("/home");
+    await redirectAfterLogin();
   };
 
   const handleGoogleSignIn = async () => {
@@ -125,7 +131,7 @@ export default function LoginScreen() {
       return;
     }
 
-    router.replace("/home");
+    await redirectAfterLogin();
   };
 
   return (
