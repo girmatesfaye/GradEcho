@@ -1,1 +1,1 @@
-#GradEcho
+GC Magazine is a mobile app that helps university students capture and preserve their graduation memories through photos, voice, and emotion. It’s designed to turn final university moments into something can revisit anytime.
