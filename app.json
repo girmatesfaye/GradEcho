@@ -21,11 +21,6 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
-    // "androidStatusBar": {
-    //   "barStyle": "light-content",
-    //   "backgroundColor": "#00000000",
-    //   "translucent": true
-    // },
     "androidNavigationBar": {
       "barStyle": "light-content",
       "backgroundColor": "#131313"
@@ -35,7 +30,9 @@
       "output": "static",
       "favicon": "./assets/images/icon.png"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "plugins": [
       "expo-router",
       [
@@ -55,6 +52,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "b464cf4f-465f-48e0-8e21-45d9fbc160bd"
+      }
     }
   }
 }
