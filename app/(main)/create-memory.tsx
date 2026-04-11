@@ -27,7 +27,7 @@ import { formatDuration } from "@/lib/audio";
 import { isAuthExpiredErrorMessage } from "@/lib/auth-errors";
 import { uploadMemoryAudio, uploadMemoryImage } from "@/lib/storage";
 import { supabase } from "@/lib/supabase";
-const TITLE_CHAR_LIMIT = 260;
+const TITLE_CHAR_LIMIT = 100;
 const END_WORDS_CHAR_LIMIT = 600;
 
 function normalizeTitle(text: string) {
@@ -299,9 +299,9 @@ export default function CreateMemoryScreen() {
               GC Magazine
             </Text>
           </View>
-          <View className="h-10 w-10 items-center justify-center rounded-full border border-primary-container/30 bg-surface-container-low">
+          {/* <View className="h-10 w-10 items-center justify-center rounded-full border border-primary-container/30 bg-surface-container-low">
             <Ionicons name="person" size={18} color="#fff6df" />
-          </View>
+          </View> */}
         </View>
         <ScrollView
           className="flex-1 px-6 pt-8"

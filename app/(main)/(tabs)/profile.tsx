@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Image, Pressable, ScrollView, Text, View } from "react-native";
 
+import { DeleteConfirmationModal } from "@/components/delete-confirmation-modal";
 import { FeedHeader } from "@/components/feed-header";
 import { MemoryCard } from "@/components/memory-card";
 import { PrimaryButton } from "@/components/primary-button";
@@ -54,6 +55,11 @@ export default function ProfileScreen() {
   const [profileId, setProfileId] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [pendingDeleteMemory, setPendingDeleteMemory] = useState<Memory | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -155,9 +161,15 @@ export default function ProfileScreen() {
   );
 
   const handleLogout = async () => {
+    if (loggingOut) {
+      return;
+    }
+
+    setLoggingOut(true);
     const { error } = await supabase.auth.signOut();
 
     if (error) {
+      setLoggingOut(false);
       Alert.alert("Logout failed", error.message);
       return;
     }
@@ -239,6 +251,53 @@ export default function ProfileScreen() {
     } finally {
       setUploadingAvatar(false);
     }
+  };
+
+  const handleRequestDeleteMemory = (id: string) => {
+    const selected = archive.find((memory) => memory.id === id) ?? null;
+    setPendingDeleteMemory(selected);
+  };
+
+  const handleCancelDeleteMemory = () => {
+    if (deletingId) {
+      return;
+    }
+    setPendingDeleteMemory(null);
+  };
+
+  const handleConfirmDeleteMemory = async () => {
+    if (!pendingDeleteMemory || deletingId) {
+      return;
+    }
+
+    setDeletingId(pendingDeleteMemory.id);
+
+    const { error } = await supabase
+      .from("memories")
+      .delete()
+      .eq("id", pendingDeleteMemory.id);
+
+    if (error) {
+      setDeletingId(null);
+
+      if (isAuthExpiredErrorMessage(error.message)) {
+        Alert.alert(
+          "Please login",
+          "Your session expired. Please login again.",
+        );
+        router.replace("/login?reason=expired");
+        return;
+      }
+
+      Alert.alert("Delete failed", error.message);
+      return;
+    }
+
+    setArchive((prev) =>
+      prev.filter((memory) => memory.id !== pendingDeleteMemory.id),
+    );
+    setPendingDeleteMemory(null);
+    setDeletingId(null);
   };
 
   return (
@@ -358,9 +417,32 @@ export default function ProfileScreen() {
           </View>
         ) : null}
         {archive.map((memory) => (
-          <MemoryCard key={memory.id} memory={memory} variant="profile" />
+          <MemoryCard
+            key={memory.id}
+            memory={memory}
+            variant="profile"
+            deleting={deletingId === memory.id}
+            onDelete={handleRequestDeleteMemory}
+          />
         ))}
       </ScrollView>
+      {loggingOut ? (
+        <View className="absolute inset-0 items-center justify-center bg-surface">
+          <Text className="font-label text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+            Signing out...
+          </Text>
+        </View>
+      ) : null}
+      <DeleteConfirmationModal
+        visible={Boolean(pendingDeleteMemory)}
+        loading={Boolean(deletingId)}
+        title="Delete this memory?"
+        message="This will permanently remove the memory from your archive."
+        onCancel={handleCancelDeleteMemory}
+        onConfirm={() => {
+          void handleConfirmDeleteMemory();
+        }}
+      />
     </View>
   );
 }

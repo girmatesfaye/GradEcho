@@ -28,7 +28,7 @@ export default function UserSetupScreen() {
   const [name, setName] = useState("");
   const [university, setUniversity] = useState("");
   const [department, setDepartment] = useState("");
-  const [year, setYear] = useState("2024");
+  const [year, setYear] = useState("2026");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
@@ -177,13 +177,13 @@ export default function UserSetupScreen() {
             </View>
             <View>
               <Text className="mb-2 px-1 font-label text-[10px] font-bold uppercase tracking-[0.15em] text-on-surface-variant">
-                Graduation Year
+                Graduation Year (GC)
               </Text>
               <TextInput
                 value={year}
                 onChangeText={setYear}
                 keyboardType="number-pad"
-                placeholder="2024"
+                placeholder="2026"
                 placeholderTextColor="#d0c6ab66"
                 className="rounded-lg bg-surface-container-low px-6 py-5 font-body text-base text-on-surface"
               />
@@ -196,7 +196,7 @@ export default function UserSetupScreen() {
                 <TextInput
                   value={email}
                   onChangeText={setEmail}
-                  placeholder="you@university.edu"
+                  placeholder="example@gmail.com"
                   placeholderTextColor="#d0c6ab66"
                   keyboardType="email-address"
                   autoCapitalize="none"

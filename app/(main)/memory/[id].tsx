@@ -1,7 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import Slider from "@react-native-community/slider";
 import { Audio } from "expo-av";
-import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -355,10 +354,10 @@ export default function MemoryDetailScreen() {
                   </Text>
                 </View>
               ) : (
-                <Image
+                <NativeImage
                   source={{ uri: memory.avatarUri }}
                   className="h-full w-full"
-                  contentFit="cover"
+                  resizeMode="cover"
                   onError={() => setAvatarLoadFailed(true)}
                 />
               )}

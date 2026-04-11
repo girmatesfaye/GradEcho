@@ -1,17 +1,19 @@
 {
   "expo": {
-    "name": "GradEcho",
-    "slug": "GradEcho",
+    "name": "gcmagazine",
+    "slug": "gcmagazine",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "gradecho",
+    "scheme": "gcmagazine",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "ios": {
+      "bundleIdentifier": "com.devgirma.gcmagazine",
       "supportsTablet": true
     },
     "android": {
+      "package": "com.devgirma.gcmagazine",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

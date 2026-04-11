@@ -21,7 +21,7 @@ import {
 
 import { PrimaryButton } from "@/components/primary-button";
 import { SecondaryButton } from "@/components/secondary-button";
-import { fetchCurrentProfile } from "@/lib/profiles";
+import { fetchCurrentProfileRole } from "@/lib/profiles";
 import { supabase } from "@/lib/supabase";
 
 const BG = require("../assets/stitch/user-setup.png");
@@ -51,8 +51,14 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
 
   const redirectAfterLogin = async () => {
-    const profile = await fetchCurrentProfile();
-    router.replace(profile?.is_admin ? "/admin" : "/home");
+    try {
+      const profile = await fetchCurrentProfileRole();
+      router.replace(profile?.is_admin ? "/admin" : "/home");
+    } catch {
+      router.replace("/home");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -77,9 +83,9 @@ export default function LoginScreen() {
       email,
       password,
     });
-    setLoading(false);
 
     if (error) {
+      setLoading(false);
       Alert.alert("Login failed", error.message);
       return;
     }
@@ -124,9 +130,9 @@ export default function LoginScreen() {
     }
 
     const { error: sessionError } = await supabase.auth.setSession(tokens);
-    setLoading(false);
 
     if (sessionError) {
+      setLoading(false);
       Alert.alert("Google sign in failed", sessionError.message);
       return;
     }
